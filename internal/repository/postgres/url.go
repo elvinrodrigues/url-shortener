@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/elvinrodrigues/url-shortener/internal/domain"
+	"github.com/lib/pq"
 )
 
 type URLPostgres struct {
@@ -22,6 +23,11 @@ func (r *URLPostgres) Create(ctx context.Context, req *domain.CreateURLRequest, 
 	err := r.db.QueryRowContext(ctx, query, shortCode, req.LongURL, req.ExpiresAt, req.UserID).Scan(&url.ID, &url.ShortCode, &url.LongURL, &url.CreatedAt, &url.ExpiresAt, &url.ClickCount, &url.IsActive, &url.UserID)
 
 	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			return nil, domain.ErrURLDuplicate
+		}
+	
 		return nil, err
 	}
 	return url, nil
