@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/elvinrodrigues/url-shortener/internal/domain"
@@ -31,7 +32,13 @@ func (h *URLHandler) Shorten(w http.ResponseWriter, r *http.Request) {
 	}
 	url, err := h.serv.Shorten(r.Context(), req)
 	if err != nil {
-		w.WriteHeader(http.StatusNotImplemented)
+		if errors.Is(err, domain.ErrURLInvalid) {
+			w.WriteHeader(http.StatusBadRequest)
+		} else if errors.Is(err, domain.ErrURLShortenFailed) {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		} else{
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
