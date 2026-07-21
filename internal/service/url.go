@@ -2,10 +2,13 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log"
+	"net/url"
 	"time"
 
 	"github.com/elvinrodrigues/url-shortener/internal/domain"
+	"github.com/elvinrodrigues/url-shortener/internal/shortcode"
 )
 
 type urlService struct {
@@ -17,8 +20,32 @@ func New(r domain.URLRepository) domain.URLService {
 }
 
 func (s *urlService) Shorten(ctx context.Context, req domain.CreateURLRequest) (*domain.URL, error) {
-	// TODO: generate short code (Base62 or CustomCode validation) — Day 2/3
-	return nil, domain.ErrNotImplemented
+	if err := validateURL(req.LongURL); err != nil {
+		return nil, err
+	}
+	const maxRetries = 5
+	codeLen := 7
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		if attempt > 2 {
+			codeLen = 8
+		}
+		code, err := shortcode.Generate(codeLen)
+		if err != nil {
+			return nil, err
+		}
+
+		url, err := s.repo.Create(ctx, &req, code)
+		if err != nil {
+			if !errors.Is(err, domain.ErrURLDuplicate) {
+				return nil, err
+			}
+			log.Printf("short code collision, retrying: attempt=%d code_len=%d", attempt, codeLen)
+		} else {
+			return url, nil
+		}
+	}
+	return nil, domain.ErrURLShortenFailed
 }
 
 func (s *urlService) Redirect(ctx context.Context, code string) (string, error) {
@@ -54,4 +81,16 @@ func (s *urlService) GetStats(ctx context.Context, code string) (*domain.URL, er
 	}
 
 	return url, nil
+}
+
+func validateURL(longURL string) error {
+	if longURL == "" {
+		return domain.ErrURLInvalid
+	}
+	u, err := url.Parse(longURL)
+
+	if err != nil || !(u.Scheme == "http" || u.Scheme == "https") || u.Host == "" {
+		return domain.ErrURLInvalid
+	}
+	return nil
 }

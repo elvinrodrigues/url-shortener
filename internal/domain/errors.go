@@ -9,6 +9,7 @@ var (
 	ErrURLExpired     = errors.New("url: link had expired")
 	ErrURLInvalid     = errors.New("url: invalid")
 	ErrURLForbidden   = errors.New("url: forbidden")
+	ErrURLShortenFailed = errors.New("url: short code generation failed")
 	ErrCacheMiss      = errors.New("cache: miss")
 	ErrNotImplemented = errors.New("not implemented")
 )
