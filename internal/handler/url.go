@@ -40,6 +40,9 @@ func (h *URLHandler) Shorten(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
+	req.UserID = userIDFromContext(r.Context())
+
 	url, err := h.serv.Shorten(r.Context(), req)
 	if err != nil {
 		switch {
@@ -85,4 +88,28 @@ func (h *URLHandler) Redirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, longURl, http.StatusFound)
+}
+
+func (h *URLHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	userID := userIDFromContext(r.Context())
+	if userID == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	code := r.PathValue("code")
+
+	err := h.serv.Delete(r.Context(), code, *userID)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrURLNotFound):
+			w.WriteHeader(http.StatusNotFound)
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

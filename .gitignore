@@ -1,3 +1,13 @@
+# Local environment & state
+.env
 .learning/
 docs/
-.env
+
+# Binary executables built by 'go build'
+server
+gentoken
+*.exe
+*.out
+
+# One-off scratch experiments (if created)
+cmd/scratch/

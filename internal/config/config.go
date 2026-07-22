@@ -9,6 +9,7 @@ type Config struct {
 	DatabaseURL string
 	Port        string
 	BaseURL     string
+	JwtSecret   string
 }
 
 func Load() (*Config, error) {
@@ -26,6 +27,10 @@ func Load() (*Config, error) {
 	cfg.BaseURL = os.Getenv("BASE_URL")
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "http://localhost:8000"
+	}
+	cfg.JwtSecret = os.Getenv("JWT_SECRET")
+	if cfg.JwtSecret == "" {
+		return nil, errors.New("JWT_SECRET environment variable is required")
 	}
 
 	return cfg, nil
