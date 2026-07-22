@@ -120,3 +120,77 @@ independently of the request lifecycle.
 - GetStats has no ownership check yet (TODO comment in code)
 - Anonymous URLs (user_id = NULL) have no deactivation path — WHERE user_id = $2
   can never match NULL
+
+  ## Day 2 — Short Code Generation (Base62, crypto/rand, collision handling)
+
+**crypto/rand over math/rand**
+math/rand is a deterministic PRNG seeded with a predictable value (e.g. time
+at process start). Anyone who can approximate that seed can reconstruct the
+exact sequence of "random" codes the service will generate — enabling URL
+enumeration or pre-registration of future codes. crypto/rand sources entropy
+from the OS's CSPRNG (/dev/urandom on Linux), making output computationally
+infeasible to predict. Any value exposed to users in a URL must use crypto/rand;
+there is no exception for "low stakes" generation.
+
+**7-character codes, escalating to 8 after repeated collisions**
+62^7 ≈ 3.5 trillion possible codes. At 100M active URLs, per-insert collision
+probability is roughly 1-in-35,000 — rare enough that a single collision on
+attempt 1 is expected bad luck, not a signal of a problem. Two consecutive
+collisions (attempts 1 and 2) would be astronomically unlikely (~1-in-1.2
+billion) if 7 characters were correctly sized for scale — so the retry loop
+only escalates codeLen to 8 once attempt > 2, treating repeated failure as a
+signal that something abnormal (not just chance) may be happening, rather
+than over-provisioning length from the first attempt.
+
+**Insert-and-handle-23505 over check-then-insert**
+Checking "does this code exist?" before inserting has a TOCTOU race: two
+goroutines can both see "no conflict" in the same tiny window and both
+proceed to insert, with one failing anyway. The database's UNIQUE constraint
+is the only atomic source of truth for uniqueness — the correct pattern is to
+attempt the insert directly, let Postgres enforce the constraint, and react
+to failure. Application-level pre-checks add a race window for no benefit.
+
+**Repository translates Postgres 23505 to domain.ErrURLDuplicate**
+Using errors.As to unwrap into *pq.Error and check .Code == "23505", the
+repository keeps Postgres-specific error types from leaking into the service
+layer — the service only ever reasons about domain sentinels. errors.As
+(not errors.Is) is required here because the check needs to inspect a field
+on the concrete error type, not just compare against a fixed sentinel value.
+
+**Shorten(): validate once, retry up to 5 times, distinct failure sentinel**
+validateURL() runs once before the retry loop, not inside it — an invalid
+long_url is rejected immediately without wasting a crypto/rand call or a DB
+round-trip on doomed attempts. The retry loop itself only retries on
+errors.Is(err, ErrURLDuplicate); any other repository error (e.g. dropped
+connection) returns immediately, since generating a new code can't fix an
+infrastructure failure. Exhausting all 5 attempts returns a new sentinel,
+domain.ErrURLShortenFailed, distinct from ErrURLDuplicate — the caller needs
+to know "the system gave up" is a different condition from "one attempt
+collided."
+
+**Handler status codes: 400 / 503 / 500**
+ErrURLInvalid → 400 (client sent bad input, their fault, fixable by them).
+ErrURLShortenFailed → 503, not 500 — this isn't a permanent server fault, it's
+a transient condition (repeated collision streak) where retrying the exact
+same request later would likely succeed, so the client is told to try again
+rather than told something is broken. Any unrecognized error → 500 as a
+catch-all; the earlier version of this handler had no default branch, which
+meant an unexpected error silently returned an implicit 200 with an empty
+body — a real bug caught during review, not a hypothetical one.
+
+**Experiment 2.2 — verified, not assumed**
+100 concurrent Shorten() calls against a live Postgres instance produced 100
+successful inserts with 100 distinct short_codes (SELECT COUNT(DISTINCT
+short_code) FROM urls = 100), confirmed race-free under `go run -race`.
+Scaling the same test to 1,000,000 concurrent goroutines against a
+MaxOpenConns(100) pool caused most goroutines to queue for a connection
+rather than fail — a live preview of the pool-exhaustion behavior Day 14's
+load testing will measure properly.
+
+**Known gaps (deliberately deferred):**
+- CustomCode field exists on CreateURLRequest but has no handling yet —
+  Shorten() always generates a random code, custom/vanity code support isn't
+  implemented
+- No rate limiting yet — Shorten() can be called at unlimited rate per client
+- Error responses currently return only a status code, no JSON error body
+  describing what went wrong
