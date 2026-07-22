@@ -8,6 +8,7 @@ import (
 type Config struct {
 	DatabaseURL string
 	Port        string
+	BaseURL     string
 }
 
 func Load() (*Config, error) {
@@ -21,6 +22,10 @@ func Load() (*Config, error) {
 	cfg.Port = os.Getenv("PORT")
 	if cfg.Port == "" {
 		cfg.Port = ":8000"
+	}
+	cfg.BaseURL = os.Getenv("BASE_URL")
+	if cfg.BaseURL == "" {
+		cfg.BaseURL = "http://localhost:8000"
 	}
 
 	return cfg, nil

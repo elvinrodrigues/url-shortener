@@ -54,6 +54,11 @@ func (s *urlService) Redirect(ctx context.Context, code string) (string, error) 
 	if err != nil {
 		return "", err
 	}
+
+	if url.ExpiresAt!=nil && time.Now().After(*url.ExpiresAt){
+	return "",domain.ErrURLExpired
+	}
+
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()

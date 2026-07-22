@@ -194,3 +194,25 @@ load testing will measure properly.
 - No rate limiting yet — Shorten() can be called at unlimited rate per client
 - Error responses currently return only a status code, no JSON error body
   describing what went wrong
+
+  ## Day 3 — Endpoints (POST /shorten, GET /:code)
+
+**302 Found over 301 Moved Permanently**
+301 Moved Permanently instructs browser clients to cache the redirection target permanently on the client side. Subsequent visits by the same user bypass the shortener backend entirely, which breaks click-count analytics (the server never receives the request) and prevents immediate URL deactivation or expiration enforcement. 302 Found guarantees every click hits the backend server, ensuring accurate analytics and real-time link control at the cost of one additional round-trip per redirect.
+
+**Payload body safety with http.MaxBytesReader**
+All POST handlers wrap request bodies with `http.MaxBytesReader(w, r.Body, 1<<20)` (1 MB limit). Unbounded body reads create a Denial-of-Service (DoS) vulnerability where malicious callers send multi-gigabyte payloads to exhaust server memory and trigger OOM killer process termination.
+
+**Fire-and-forget click tracking with decoupled context**
+Click count increments in `service.Redirect()` are dispatched asynchronously in a goroutine to avoid adding database write latency to the HTTP redirect hot path. The goroutine uses `context.Background()` with a 3-second timeout rather than the HTTP request context `r.Context()`. The HTTP request context is canceled immediately when the handler returns the response; passing `r.Context()` to a background goroutine causes mid-flight database queries to be canceled silently.
+
+**HTTP status code semantic mapping**
+Creation returns `201 Created` with a `Location` header pointing to the generated short URL and a JSON body containing `short_url` and `short_code`. Input validation failures distinguish syntactic/structural JSON errors (`400 Bad Request`) from domain validation failures such as invalid URL scheme (`422 Unprocessable Entity`). Link redirection distinguishes non-existent/deactivated links (`404 Not Found`) from expired links (`410 Gone`).
+
+**Decoupled BaseURL in configuration**
+Configuration loads `BaseURL` (defaulting to `http://localhost:8000`) independently of internal bind `PORT`. Internal bind ports (`:8000`) do not necessarily match public-facing domain URLs behind reverse proxies or load balancers (e.g. `https://short.ly`).
+
+**Known gaps (deliberately deferred):**
+- All redirects query PostgreSQL directly; Redis caching layer is not yet implemented (Day 7-8)
+- No per-client or per-IP rate limiting on shortener endpoints (Day 9)
+- Async click count writes directly to PostgreSQL per redirect; no click batching or async buffer queue

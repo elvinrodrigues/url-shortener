@@ -22,14 +22,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("Database connection error %v", err)
 	}
+
 	repo := postgres.New(db)
 	serv := service.New(repo)
-	h := handler.New(serv)
+	h := handler.New(serv, cfg.BaseURL)
 
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", h.HealthCheck)
 	mux.HandleFunc("POST /shorten", h.Shorten)
+	mux.HandleFunc("GET /{code}", h.Redirect)
 
 	if err := http.ListenAndServe(cfg.Port, mux); err != nil {
 		log.Fatalf("Server error: %v", err)
