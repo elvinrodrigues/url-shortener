@@ -23,6 +23,18 @@ func (s *urlService) Shorten(ctx context.Context, req domain.CreateURLRequest) (
 	if err := validateURL(req.LongURL); err != nil {
 		return nil, err
 	}
+
+	if req.CustomCode!=""{
+		if err :=validateCustomCode(req.CustomCode); err!=nil{
+			return nil,err
+		}
+		url,err := s.repo.Create(ctx,&req,req.CustomCode)
+		if err!=nil{
+			return nil,err
+		}
+		return url,nil
+	}
+
 	const maxRetries = 5
 	codeLen := 7
 
@@ -96,6 +108,13 @@ func validateURL(longURL string) error {
 
 	if err != nil || !(u.Scheme == "http" || u.Scheme == "https") || u.Host == "" {
 		return domain.ErrURLInvalid
+	}
+	return nil
+}
+
+func validateCustomCode(code string) error{
+	if len(code)<5 || len(code)>30{
+		return domain.ErrCustomCodeInvalid
 	}
 	return nil
 }

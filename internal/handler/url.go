@@ -42,11 +42,16 @@ func (h *URLHandler) Shorten(w http.ResponseWriter, r *http.Request) {
 	}
 	url, err := h.serv.Shorten(r.Context(), req)
 	if err != nil {
-		if errors.Is(err, domain.ErrURLInvalid) {
+		switch {
+		case errors.Is(err, domain.ErrURLDuplicate):
+			w.WriteHeader(http.StatusConflict)
+		case errors.Is(err, domain.ErrURLInvalid):
 			w.WriteHeader(http.StatusUnprocessableEntity)
-		} else if errors.Is(err, domain.ErrURLShortenFailed) {
+		case errors.Is(err, domain.ErrCustomCodeInvalid):
+			w.WriteHeader(http.StatusUnprocessableEntity)
+		case errors.Is(err, domain.ErrURLShortenFailed):
 			w.WriteHeader(http.StatusServiceUnavailable)
-		} else {
+		default:
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		return
@@ -69,15 +74,15 @@ func (h *URLHandler) Redirect(w http.ResponseWriter, r *http.Request) {
 	longURl, err := h.serv.Redirect(r.Context(), code)
 
 	if err != nil {
-		if errors.Is(err, domain.ErrURLExpired) {
+		switch {
+		case errors.Is(err, domain.ErrURLExpired):
 			w.WriteHeader(http.StatusGone)
-		} else if errors.Is(err, domain.ErrURLNotFound) {
+		case errors.Is(err, domain.ErrURLNotFound):
 			w.WriteHeader(http.StatusNotFound)
-		} else {
+		default:
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		return
 	}
 	http.Redirect(w, r, longURl, http.StatusFound)
-
 }
