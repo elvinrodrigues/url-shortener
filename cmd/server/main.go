@@ -41,6 +41,8 @@ func main() {
 	// DELETE /{code} uses AuthMiddleware THEN RequireAuth (enforces logged-in user)
 	mux.Handle("DELETE /{code}", auth(handler.RequireAuth(http.HandlerFunc(h.Delete))))
 
+	mux.Handle("GET /stats/{code}", auth(handler.RequireAuth(http.HandlerFunc(h.GetStats))))
+
 	if err := http.ListenAndServe(cfg.Port, mux); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

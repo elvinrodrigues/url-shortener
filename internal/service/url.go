@@ -24,15 +24,15 @@ func (s *urlService) Shorten(ctx context.Context, req domain.CreateURLRequest) (
 		return nil, err
 	}
 
-	if req.CustomCode!=""{
-		if err :=validateCustomCode(req.CustomCode); err!=nil{
-			return nil,err
+	if req.CustomCode != "" {
+		if err := validateCustomCode(req.CustomCode); err != nil {
+			return nil, err
 		}
-		url,err := s.repo.Create(ctx,&req,req.CustomCode)
-		if err!=nil{
-			return nil,err
+		url, err := s.repo.Create(ctx, &req, req.CustomCode)
+		if err != nil {
+			return nil, err
 		}
-		return url,nil
+		return url, nil
 	}
 
 	const maxRetries = 5
@@ -67,8 +67,8 @@ func (s *urlService) Redirect(ctx context.Context, code string) (string, error) 
 		return "", err
 	}
 
-	if url.ExpiresAt!=nil && time.Now().After(*url.ExpiresAt){
-	return "",domain.ErrURLExpired
+	if url.ExpiresAt != nil && time.Now().After(*url.ExpiresAt) {
+		return "", domain.ErrURLExpired
 	}
 
 	go func() {
@@ -90,11 +90,15 @@ func (s *urlService) Delete(ctx context.Context, code string, userID int64) erro
 
 	return nil
 }
-func (s *urlService) GetStats(ctx context.Context, code string) (*domain.URL, error) {
+func (s *urlService) GetStats(ctx context.Context, code string, userID int64) (*domain.URL, error) {
 	url, err := s.repo.GetStats(ctx, code)
 
 	if err != nil {
 		return nil, err
+	}
+
+	if url.UserID == nil || *url.UserID != userID {
+		return nil, domain.ErrURLForbidden
 	}
 
 	return url, nil
@@ -112,8 +116,8 @@ func validateURL(longURL string) error {
 	return nil
 }
 
-func validateCustomCode(code string) error{
-	if len(code)<5 || len(code)>30{
+func validateCustomCode(code string) error {
+	if len(code) < 5 || len(code) > 30 {
 		return domain.ErrCustomCodeInvalid
 	}
 	return nil

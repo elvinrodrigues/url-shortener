@@ -34,7 +34,7 @@ type URLService interface {
 	Shorten(ctx context.Context, req CreateURLRequest) (*URL, error)
 	Redirect(ctx context.Context, code string) (string, error)
 	Delete(ctx context.Context, code string,userID int64) error
-	GetStats(ctx context.Context, code string) (*URL, error)
+	GetStats(ctx context.Context, code string,userID int64) (*URL, error)
 }
 
 type URLCache interface{

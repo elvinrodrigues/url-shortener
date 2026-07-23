@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/elvinrodrigues/url-shortener/internal/domain"
 )
@@ -16,6 +17,16 @@ type URLHandler struct {
 type CreateURLResponse struct {
 	ShortURL  string `json:"short_url"`
 	ShortCode string `json:"short_code"`
+}
+type GetStatsResponse struct {
+	Shortcode  string     `json:"short_code"`
+	LongURL    string     `json:"long_url"`
+	CreatedAt  time.Time  `json:"created_at"`
+	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
+	ClickCount int64      `json:"click_count"`
+	IsActive   bool       `json:"is_active"`
+}
+type CreateURLRequest struct {
 }
 
 func New(s domain.URLService, url string) *URLHandler {
@@ -112,4 +123,36 @@ func (h *URLHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *URLHandler) GetStats(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	code := r.PathValue("code")
+
+	userID := userIDFromContext(r.Context())
+
+	url, err := h.serv.GetStats(r.Context(), code, *userID)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrURLNotFound):
+			w.WriteHeader(http.StatusNotFound)
+		case errors.Is(err, domain.ErrURLForbidden):
+			w.WriteHeader(http.StatusForbidden)
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+	response := GetStatsResponse{
+		Shortcode:  url.ShortCode,
+		LongURL:    url.LongURL,
+		ClickCount: url.ClickCount,
+		CreatedAt:  url.CreatedAt,
+		ExpiresAt:  url.ExpiresAt,
+		IsActive:   url.IsActive,
+	}
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+
 }

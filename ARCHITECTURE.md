@@ -216,3 +216,28 @@ Configuration loads `BaseURL` (defaulting to `http://localhost:8000`) independen
 - All redirects query PostgreSQL directly; Redis caching layer is not yet implemented (Day 7-8)
 - No per-client or per-IP rate limiting on shortener endpoints (Day 9)
 - Async click count writes directly to PostgreSQL per redirect; no click batching or async buffer queue
+
+## Day 4 — JWT Auth Middleware + DELETE /:code
+
+**Stateless JWT verification over stateful sessions**
+JWT (JSON Web Token) authentication is used to verify user identity statelessly. By digitally signing claims (`user_id`, `exp`, `iat`) with an HMAC-SHA256 secret key (`JWT_SECRET`), the server verifies token integrity on every request in memory without querying PostgreSQL or Redis for active session lookups. This prevents database CPU and memory saturation under high request concurrency.
+
+**Type-safe context keys with custom type definition**
+Go's `context.WithValue` accepts `any` (`interface{}`) as key, which risks key collision if third-party packages or other middleware use raw strings like `"userID"`. Defining a private type `type contextKey string` and constant `const contextKeyUserID contextKey = "userID"` ensures that Go's type-assertion and equality checks match on `(Type: handler.contextKey, Value: "userID")`, rendering it impossible for third-party libraries to overwrite or read authenticated user context.
+
+**IDOR prevention: returning 404 Not Found instead of 403 Forbidden**
+When a user attempts to delete a URL they do not own (or a URL that does not exist), `repository.Deactivate` uses `UPDATE urls SET is_active = false WHERE short_code = $1 AND user_id = $2`. If `RowsAffected()` returns 0, the repository returns `domain.ErrURLNotFound`, and the handler returns `404 Not Found`. Returning `403 Forbidden` would leak resource existence to an attacker, enabling short-code enumeration across the platform.
+
+**Atomic SQL ownership enforcement**
+Combining URL existence check, status check, and ownership verification into a single atomic `UPDATE` query eliminates TOCTOU (Time-of-Check to Time-of-Use) race conditions and cuts database round-trips from two (`SELECT` then `UPDATE`) down to one.
+
+**Middleware chaining: AuthMiddleware vs RequireAuth**
+`AuthMiddleware` runs first on every route to inspect the optional `Authorization: Bearer <token>` header, verify HMAC signatures, and inject `userID` into context. `RequireAuth` acts as a downstream gatekeeper for protected endpoints (like `DELETE /{code}`), performing a fast 2-line check (`if userID == nil`) to return `401 Unauthorized` without redundant signature re-parsing.
+
+**Explicit context-to-struct binding in handlers**
+`AuthMiddleware` attaches `userID` to `r.Context()`, but handlers must explicitly extract it via `userIDFromContext(r.Context())` and bind it to domain request structs (`req.UserID`). Failing to populate `req.UserID` causes URLs to be created with `user_id = NULL`, which subsequently breaks ownership-based deletion queries—a critical integration checkpoint caught during Day 4 verification.
+
+**Known gaps (deliberately deferred):**
+- Token revocation / blocklist layer is not yet implemented (tokens remain valid until `exp`)
+- Refresh token rotation is not yet implemented
+- GET /stats/:code analytics endpoint ownership check deferred to Day 5
