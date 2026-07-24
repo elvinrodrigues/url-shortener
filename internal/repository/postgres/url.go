@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/elvinrodrigues/url-shortener/internal/domain"
 	"github.com/lib/pq"
@@ -27,8 +28,8 @@ func (r *URLPostgres) Create(ctx context.Context, req *domain.CreateURLRequest, 
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
 			return nil, domain.ErrURLDuplicate
 		}
-	
-		return nil, err
+
+		return nil, fmt.Errorf("postgres create: %w", err)
 	}
 	return url, nil
 }
@@ -41,7 +42,7 @@ func (r *URLPostgres) GetByCode(ctx context.Context, shortCode string) (*domain.
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrURLNotFound
 		}
-		return nil, err
+		return nil, fmt.Errorf("postgres get by code: %w", err)
 	}
 	url.ShortCode = shortCode
 	url.IsActive = true
@@ -51,11 +52,11 @@ func (r *URLPostgres) IncrementClicks(ctx context.Context, shortCode string) err
 	query := "UPDATE urls SET click_count=click_count+1 where short_code = $1"
 	res, err := r.db.ExecContext(ctx, query, shortCode)
 	if err != nil {
-		return err
+		return fmt.Errorf("postgres increment clicks exec: %w", err)
 	}
 	count, err := res.RowsAffected()
 	if err != nil {
-		return err
+		return fmt.Errorf("postgres increment clicks: %w", err)
 	}
 	if count == 0 {
 		return domain.ErrURLNotFound
@@ -68,17 +69,16 @@ func (r *URLPostgres) Deactivate(ctx context.Context, shortCode string, userID i
 	query := "UPDATE urls SET is_active = false where short_code=$1 AND user_id = $2"
 	res, err := r.db.ExecContext(ctx, query, shortCode, userID)
 	if err != nil {
-		return err
+		return fmt.Errorf("postgres deactivate: %w", err)
 	}
 	if count, err := res.RowsAffected(); err != nil {
-		return err
+		return fmt.Errorf("postgres deactivate: %w", err)
 	} else if count == 0 {
 		return domain.ErrURLNotFound
 	}
 	return nil
 }
 
-// TODO: service layer must verify url.UserID == caller before returning stats
 func (r *URLPostgres) GetStats(ctx context.Context, shortCode string) (*domain.URL, error) {
 	query := "SELECT id,short_code,long_url,created_at,expires_at,click_count,is_active,user_id FROM urls WHERE short_code = $1"
 	var url = &domain.URL{}
@@ -87,7 +87,7 @@ func (r *URLPostgres) GetStats(ctx context.Context, shortCode string) (*domain.U
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, domain.ErrURLNotFound
 		}
-		return nil, err
+		return nil, fmt.Errorf("postgres get stats: %w", err)
 	}
 	return url, nil
 }

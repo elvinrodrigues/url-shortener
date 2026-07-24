@@ -240,4 +240,40 @@ Combining URL existence check, status check, and ownership verification into a s
 **Known gaps (deliberately deferred):**
 - Token revocation / blocklist layer is not yet implemented (tokens remain valid until `exp`)
 - Refresh token rotation is not yet implemented
-- GET /stats/:code analytics endpoint ownership check deferred to Day 5
+
+## Day 5 — GET /stats/:code Analytics Endpoint
+
+**403 Forbidden vs 404 Not Found for read-only vs destructive authorization**
+While `DELETE /{code}` returns `404 Not Found` for both non-existent links and unauthorized users to prevent resource existence enumeration (IDOR protection for destructive actions), `GET /stats/{code}` returns `403 Forbidden` for non-owners. For read-only analytics, confirming link existence to an authenticated user presents negligible risk while providing clear feedback for legitimate multi-account workflows or management tools.
+
+**Service-layer authorization with explicit nil-pointer guarding**
+The repository query (`SELECT ... FROM urls WHERE short_code = $1`) intentionally omits `is_active = true` and `user_id` filters so historical analytics remain retrievable for soft-deleted URLs. Ownership verification is performed in the service layer using explicit nil-pointer guards (`if url.UserID == nil || *url.UserID != userID`). Comparing primitive values (`*url.UserID != userID`) rather than pointer addresses (`url.UserID != &userID`) avoids false authorization rejections caused by stack pointer allocations.
+
+**Historical analytics accessibility for soft-deleted URLs**
+Deactivating a short URL (`is_active = false`) removes it from the redirection hot path (`GET /{code}` returns `404`) but preserves its row in PostgreSQL. `GET /stats/{code}` returns `200 OK` with `"is_active": false` and total accumulated `click_count`, enabling link creators to inspect historical performance data post-deactivation.
+
+**Known gaps (deliberately deferred):**
+- Click count metrics are scalar atomic counts without time-series breakdown (e.g. clicks by hour/day, referrer, or geo-location)
+- No caching layer for stats queries (every stats request hits PostgreSQL directly; to be addressed if analytics traffic scales)
+- Redis cache invalidation on link deactivation deferred to Day 8
+
+## Day 6 — Week 1 Hardening & Security Audit
+
+**Defense-in-depth security checklist**
+Enforced multi-layered security verification across all HTTP handlers and repository operations:
+1. `http.MaxBytesReader(w, r.Body, 1<<20)` wraps all POST request bodies to enforce a 1 MB size ceiling, mitigating memory exhaustion Denial-of-Service (DoS) attacks.
+2. Mandatory Context propagation (`QueryRowContext`, `ExecContext`) across all PostgreSQL queries ensures client connection cancellations or request timeouts immediately abort pending database operations.
+3. Domain URL validation rejects non-HTTP/HTTPS schemes (e.g. `javascript:`, `data:`, `file:`) to prevent Stored XSS and open redirect vulnerabilities.
+4. User identity (`userID`) is extracted exclusively from validated JWT claims in request context, preventing body-injection impersonation.
+
+**Systematic error wrapping with `fmt.Errorf("%w")`**
+All PostgreSQL infrastructure errors are wrapped at the repository layer using `fmt.Errorf("postgres <method>: %w", err)`. The `%w` verb preserves the error unwrap chain for `errors.Is`/`errors.As` inspection (allowing domain sentinel matching such as `sql.ErrNoRows` -> `domain.ErrURLNotFound`), while supplying precise operational context in application logs.
+
+**Stateless concurrency and data race verification**
+Audited the application under `go run -race` during concurrent load testing. Zero data races were detected. The Go application layer maintains zero in-memory mutable state (no shared global maps, slices, or unprotected structs); all state updates occur atomically within PostgreSQL queries (`UPDATE urls SET click_count = click_count + 1`).
+
+**Known gaps (deliberately deferred):**
+- Redis caching layer for redirection hot path deferred to Day 7–8
+- Per-IP / per-user rate limiting middleware deferred to Day 9
+- Cache stampede prevention via `singleflight` deferred to Day 10
+- Structured logging with `slog` and trace ID propagation deferred to Day 12

@@ -19,7 +19,7 @@ type CreateURLResponse struct {
 	ShortCode string `json:"short_code"`
 }
 type GetStatsResponse struct {
-	Shortcode  string     `json:"short_code"`
+	ShortCode  string     `json:"short_code"`
 	LongURL    string     `json:"long_url"`
 	CreatedAt  time.Time  `json:"created_at"`
 	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
@@ -85,7 +85,7 @@ func (h *URLHandler) Redirect(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	code := r.PathValue("code")
 
-	longURl, err := h.serv.Redirect(r.Context(), code)
+	longURL, err := h.serv.Redirect(r.Context(), code)
 
 	if err != nil {
 		switch {
@@ -98,7 +98,7 @@ func (h *URLHandler) Redirect(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	http.Redirect(w, r, longURl, http.StatusFound)
+	http.Redirect(w, r, longURL, http.StatusFound)
 }
 
 func (h *URLHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -131,6 +131,11 @@ func (h *URLHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 
 	userID := userIDFromContext(r.Context())
 
+	if userID == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	url, err := h.serv.GetStats(r.Context(), code, *userID)
 
 	if err != nil {
@@ -145,7 +150,7 @@ func (h *URLHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response := GetStatsResponse{
-		Shortcode:  url.ShortCode,
+		ShortCode:  url.ShortCode,
 		LongURL:    url.LongURL,
 		ClickCount: url.ClickCount,
 		CreatedAt:  url.CreatedAt,

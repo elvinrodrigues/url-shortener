@@ -75,7 +75,7 @@ func (s *urlService) Redirect(ctx context.Context, code string) (string, error) 
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		if err := s.repo.IncrementClicks(ctx, url.ShortCode); err != nil {
-			log.Println("Error", err)
+			log.Printf("async click increment failed for code %s: %v", url.ShortCode, err)
 		}
 	}()
 
