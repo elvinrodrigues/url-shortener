@@ -12,11 +12,12 @@ import (
 )
 
 type urlService struct {
-	repo domain.URLRepository
+	repo  domain.URLRepository
+	cache domain.URLCache
 }
 
-func New(r domain.URLRepository) domain.URLService {
-	return &urlService{repo: r}
+func New(r domain.URLRepository, c domain.URLCache) domain.URLService {
+	return &urlService{repo: r, cache: c}
 }
 
 func (s *urlService) Shorten(ctx context.Context, req domain.CreateURLRequest) (*domain.URL, error) {

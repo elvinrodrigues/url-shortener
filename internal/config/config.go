@@ -10,6 +10,7 @@ type Config struct {
 	Port        string
 	BaseURL     string
 	JwtSecret   string
+	RedisAddr   string
 }
 
 func Load() (*Config, error) {
@@ -31,6 +32,11 @@ func Load() (*Config, error) {
 	cfg.JwtSecret = os.Getenv("JWT_SECRET")
 	if cfg.JwtSecret == "" {
 		return nil, errors.New("JWT_SECRET environment variable is required")
+	}
+
+	cfg.RedisAddr = os.Getenv("REDIS_ADDR")
+	if cfg.RedisAddr == "" {
+		cfg.RedisAddr = "localhost:6379"
 	}
 
 	return cfg, nil

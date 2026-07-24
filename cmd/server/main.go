@@ -3,10 +3,12 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/elvinrodrigues/url-shortener/internal/config"
 	"github.com/elvinrodrigues/url-shortener/internal/db"
 	"github.com/elvinrodrigues/url-shortener/internal/handler"
+	"github.com/elvinrodrigues/url-shortener/internal/repository/cache"
 	"github.com/elvinrodrigues/url-shortener/internal/repository/postgres"
 	"github.com/elvinrodrigues/url-shortener/internal/service"
 	_ "github.com/lib/pq"
@@ -24,7 +26,14 @@ func main() {
 	}
 
 	repo := postgres.New(db)
-	serv := service.New(repo)
+	urlCache, err := cache.NewRedisURLCache(cfg.RedisAddr, 24*time.Hour)
+
+	if err != nil {
+		log.Printf("[WARN]Redis unavailable at startup: %v — running in degraded mode", err)
+	}
+
+	serv := service.New(repo, urlCache)
+
 	h := handler.New(serv, cfg.BaseURL)
 
 	jwtSecret := []byte(cfg.JwtSecret)
