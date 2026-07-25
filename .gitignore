@@ -11,3 +11,5 @@ gentoken
 
 # One-off scratch experiments (if created)
 cmd/scratch/
+
+dump.rdb

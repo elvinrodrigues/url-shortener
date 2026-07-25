@@ -62,6 +62,24 @@ func (s *urlService) Shorten(ctx context.Context, req domain.CreateURLRequest) (
 }
 
 func (s *urlService) Redirect(ctx context.Context, code string) (string, error) {
+
+	longURL, err := s.cache.Get(ctx, code)
+
+	if err == nil {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			if err := s.repo.IncrementClicks(ctx, code); err != nil {
+				log.Printf("async click increment failed for code %s: %v", code, err)
+			}
+		}()
+		return longURL, nil
+	}
+	if !errors.Is(err, domain.ErrCacheMiss) {
+		// Line 79 — add code and actual err:
+		log.Printf("[WARN] cache get failed for code %s, falling back to DB: %v", code, err)
+	}
+
 	url, err := s.repo.GetByCode(ctx, code)
 
 	if err != nil {
@@ -75,6 +93,11 @@ func (s *urlService) Redirect(ctx context.Context, code string) (string, error) 
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
+		ttl := determineTTL(url.ExpiresAt)
+		if err := s.cache.Set(ctx, code, url.LongURL, ttl); err != nil {
+			log.Printf("failed to cache %s: %v", url.ShortCode, err)
+		}
+
 		if err := s.repo.IncrementClicks(ctx, url.ShortCode); err != nil {
 			log.Printf("async click increment failed for code %s: %v", url.ShortCode, err)
 		}
@@ -88,6 +111,13 @@ func (s *urlService) Delete(ctx context.Context, code string, userID int64) erro
 	if err != nil {
 		return err
 	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if err := s.cache.Delete(ctx, code); err != nil {
+			log.Printf("[WARN] delete cache failed for code %s: %v", code, err)
+		}
+	}()
 
 	return nil
 }
@@ -122,4 +152,20 @@ func validateCustomCode(code string) error {
 		return domain.ErrCustomCodeInvalid
 	}
 	return nil
+}
+
+func determineTTL(expiresAt *time.Time) time.Duration {
+	const defaultTTL = 1 * time.Hour
+	if expiresAt == nil {
+		return defaultTTL
+	}
+	ttl := time.Until(*expiresAt)
+
+	if ttl <= 0 {
+		return time.Second
+	}
+	if ttl > defaultTTL {
+		return defaultTTL
+	}
+	return ttl
 }

@@ -277,3 +277,43 @@ Audited the application under `go run -race` during concurrent load testing. Zer
 - Per-IP / per-user rate limiting middleware deferred to Day 9
 - Cache stampede prevention via `singleflight` deferred to Day 10
 - Structured logging with `slog` and trace ID propagation deferred to Day 12
+
+## Day 7 — Redis Setup, Connection Pool & URLCache Abstraction Layer
+
+**Redis as an optional performance layer vs PostgreSQL as source of truth**
+PostgreSQL is the durable source of truth on disk. Redis is an optional, volatile cache in RAM (~0.1ms reads vs ~2ms DB queries). If Redis goes down or fails at startup, `NewRedisURLCache` returns a warning log instead of panicking with `log.Fatalf`. The service degrades gracefully by falling back to PostgreSQL for all reads without surfacing HTTP 500 errors to users.
+
+**Connection pool tuning (`PoolSize=10`, `MinIdleConns=2`, `ConnMaxIdleTime=5m`)**
+Reusing open TCP connections from a pool avoids adding 1–3ms TCP handshake latency to every HTTP request. `MinIdleConns=2` keeps 2 idle connections pre-warmed for instant execution, while `PoolSize=10` prevents socket exhaustion. `ConnMaxIdleTime=5m` recycles stale connections.
+
+**Control flow mapping: `redis.Nil` to `domain.ErrCacheMiss`**
+`go-redis` returns `redis.Nil` when a key does not exist or has expired. This is an expected cache miss (normal control flow), not an infrastructure failure. `Get()` explicitly maps `redis.Nil` to `domain.ErrCacheMiss` using `errors.Is`. Infrastructure errors (connection timeouts/refusals) are wrapped with `fmt.Errorf("cache get: %w", err)` so loggers can track Redis outages.
+
+**Key namespace prefixing (`"url:"`)**
+Keys are stored in Redis with the `"url:"` prefix (e.g. `"url:aB3x9K1"`). Because Redis is a flat global key-value store, prefixing isolates the URL cache namespace from future Redis features (e.g., rate limiting keys like `"ratelimit:192.168.1.1"`), preventing key collisions.
+
+**Eviction policy (`allkeys-lru`)**
+Configuring Redis with `allkeys-lru` ensures that when memory is full, the least recently used keys are automatically evicted. This preserves hot URLs in RAM and prevents Redis from returning OOM write errors.
+
+**Known gaps (deliberately deferred):**
+- Cache-Aside lookup logic in `Redirect()` and cache populating deferred to Day 8
+- Cache invalidation (`Delete`) on link deactivation deferred to Day 8
+- Redis Lua script rate limiting middleware deferred to Day 9
+
+## Day 8 — Cache-Aside Pattern in Redirect Hot Path
+
+**Cache-Aside Read Flow (`service.Redirect`)**
+`Redirect()` checks the Redis cache first via `cache.Get(ctx, code)`. On a cache hit (`err == nil`), the long URL is returned immediately (~0.8ms), and click count is incremented asynchronously in a detached goroutine. On a cache miss (`domain.ErrCacheMiss`) or infrastructure error (e.g. Redis timeout/outage), the service falls back to PostgreSQL. On DB hit, a background goroutine with `context.Background()` asynchronously populates Redis (`cache.Set`) and increments clicks without blocking response latency.
+
+**DB-First Invalidation Order (`service.Delete`)**
+URL deactivation updates PostgreSQL first (`repo.Deactivate`). Only after the DB write succeeds is the cache key invalidated via `cache.Delete`. PostgreSQL remains the atomic source of truth; if cache deletion fails, the stale entry expires on its TTL, whereas invalidating cache before a failed DB write would cause cache repopulation and data inconsistency.
+
+**Dynamic TTL Calculation (`determineTTL`)**
+Default cache TTL is 1 hour. For URLs with an explicit `ExpiresAt` timestamp, TTL is dynamically calculated as `time.Until(*ExpiresAt)`, capped at 1 hour. If a URL is already expired (`ttl <= 0`), `determineTTL` returns `1s` rather than `0` (which in `go-redis` indicates no expiration/persist forever).
+
+**Graceful Degradation under Infrastructure Failures**
+Cache read and write failures are caught, logged at `[WARN]` level, and handled silently without bubbling up to the client. A total Redis failure degrades system latency (falling back to ~2ms DB queries) but returns `302 Found` with zero 500 Internal Server Errors.
+
+**Known gaps (deliberately deferred):**
+- Sliding-window rate limiting middleware deferred to Day 9
+- Cache stampede prevention on cold key spikes via `singleflight` deferred to Day 10
