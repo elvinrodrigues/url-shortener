@@ -84,9 +84,10 @@ func (h *URLHandler) Shorten(w http.ResponseWriter, r *http.Request) {
 func (h *URLHandler) Redirect(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	code := r.PathValue("code")
+	// t := time.Now()
 
 	longURL, err := h.serv.Redirect(r.Context(), code)
-
+	// log.Println("Time :",time.Since(t))
 	if err != nil {
 		switch {
 		case errors.Is(err, domain.ErrURLExpired):

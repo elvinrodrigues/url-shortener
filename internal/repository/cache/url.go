@@ -15,6 +15,10 @@ type RedisURLCache struct {
 	ttl    time.Duration
 }
 
+func (c *RedisURLCache) Client() *redis.Client {
+	return c.client
+}
+
 func NewRedisURLCache(addr string, defaultTTL time.Duration) (*RedisURLCache, error) {
 	client := redis.NewClient(&redis.Options{
 		Addr:            addr,

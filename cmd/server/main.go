@@ -38,6 +38,7 @@ func main() {
 
 	jwtSecret := []byte(cfg.JwtSecret)
 	auth := handler.AuthMiddleware(jwtSecret)
+	rateLimiter := handler.RateLimitMiddleware(urlCache.Client(), 10, time.Minute)
 
 	mux := http.NewServeMux()
 
@@ -45,7 +46,7 @@ func main() {
 	mux.HandleFunc("GET /{code}", h.Redirect)
 
 	// POST /shorten uses optional auth (attaches userID if token is sent)
-	mux.Handle("POST /shorten", auth(http.HandlerFunc(h.Shorten)))
+	mux.Handle("POST /shorten", rateLimiter(auth(http.HandlerFunc(h.Shorten))))
 
 	// DELETE /{code} uses AuthMiddleware THEN RequireAuth (enforces logged-in user)
 	mux.Handle("DELETE /{code}", auth(handler.RequireAuth(http.HandlerFunc(h.Delete))))

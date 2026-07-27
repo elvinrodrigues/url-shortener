@@ -315,5 +315,29 @@ Default cache TTL is 1 hour. For URLs with an explicit `ExpiresAt` timestamp, TT
 Cache read and write failures are caught, logged at `[WARN]` level, and handled silently without bubbling up to the client. A total Redis failure degrades system latency (falling back to ~2ms DB queries) but returns `302 Found` with zero 500 Internal Server Errors.
 
 **Known gaps (deliberately deferred):**
-- Sliding-window rate limiting middleware deferred to Day 9
+- Sliding-window rate limiting middleware implemented in Day 9
 - Cache stampede prevention on cold key spikes via `singleflight` deferred to Day 10
+
+## Day 9 — Rate Limiting Middleware (Sliding Window with Redis Lua Script)
+
+**Sliding Window Algorithm over Fixed Window**
+Fixed-window rate limiting resets request counters at hard time boundaries (e.g. `:00` seconds), opening a boundary burst vulnerability where a client can send N requests at `:59` and another N requests at `:00` (allowing 2N requests in 2 seconds). Sliding window counts requests over a rolling window (`now - 60s`) from the current moment, eliminating boundary bursts.
+
+**Redis Sorted Sets (ZSET) Data Structure**
+Each client IP maps to a Redis Sorted Set key (`"rate:<ip>"`). Request timestamps (nanoseconds) serve as both the ZSET score and value (appended with a random float to ensure member uniqueness for concurrent requests). Older timestamps (`< now - window`) are pruned using `ZREMRANGEBYSCORE`, and current request counts are evaluated using `ZCARD`.
+
+**Atomic Execution via Redis Lua Script**
+Executing `ZREMRANGEBYSCORE`, `ZCARD`, and `ZADD` as separate Redis commands over Go opens a Time-of-Check to Time-of-Use (TOCTOU) race condition: under concurrency, multiple goroutines read `ZCARD` simultaneously before any execute `ZADD`, allowing burst traffic above the limit. Wrapping the operations inside a single Redis Lua script (`slidingWindowScript.Run`) guarantees atomic execution on Redis's single-threaded event loop.
+
+**Lua 5.1 Explicit Type Coercion (`tonumber`)**
+Redis Lua 5.1 automatically coerces string arguments (`ARGV`) for arithmetic operations (`-`, `+`), but throws a runtime error when evaluating relational operators (`>=`) between integers (`ZCARD` output) and string arguments. All `ARGV` parameters are explicitly wrapped in `tonumber(ARGV[i])` to prevent script execution failures.
+
+**Fail-Open Resilience Policy**
+If Redis is down or returns a script error, `RateLimitMiddleware` catches the error, logs/ignores it, and calls `next.ServeHTTP(w, r)` (failing open). Rate limiting protects infrastructure against abuse but must never cause a total service outage during a cache/Redis maintenance window.
+
+**IP Resolution & Header Protocol**
+Client IP is extracted via `realIP(r)`, checking `X-Forwarded-For` first (for reverse proxy/load balancer compatibility) with fallback to `net.SplitHostPort(r.RemoteAddr)`. When rate limited, the server responds with `429 Too Many Requests`, sets `Retry-After: 60`, and returns JSON `{"error":"rate limit exceeded"}`.
+
+**Known gaps (deliberately deferred):**
+- Cache stampede prevention on concurrent cache misses deferred to Day 10 (`singleflight`)
+- Rate limiting is per-IP only; per-authenticated-user or per-API-key rate limiting tiers are not implemented
