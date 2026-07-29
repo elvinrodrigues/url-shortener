@@ -3,12 +3,14 @@ package handler
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/elvinrodrigues/url-shortener/internal/ctxlog"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/redis/go-redis/v9"
 )
@@ -22,6 +24,16 @@ type CustomClaims struct {
 	jwt.RegisteredClaims
 }
 
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
 func userIDFromContext(ctx context.Context) *int64 {
 	val, ok := ctx.Value(contextKeyUserID).(int64)
 
@@ -29,6 +41,35 @@ func userIDFromContext(ctx context.Context) *int64 {
 		return nil
 	}
 	return &val
+}
+
+func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			reqID := r.Header.Get("X-Request-ID")
+			if reqID == "" {
+				reqID = strconv.FormatInt(time.Now().UnixNano(), 10)
+			}
+			w.Header().Set("X-Request-ID", reqID)
+
+			reqLogger := logger.With("request_id", reqID)
+
+			ctx := ctxlog.WithLogger(r.Context(), reqLogger)
+
+			rw := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+			start := time.Now()
+
+			next.ServeHTTP(rw, r.WithContext(ctx))
+
+			reqLogger.Info("request",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"status", rw.statusCode,
+				"latency_ms", time.Since(start).Milliseconds(),
+				"ip", realIP(r),
+			)
+		})
+	}
 }
 
 func AuthMiddleware(secret []byte) func(http.Handler) http.Handler {

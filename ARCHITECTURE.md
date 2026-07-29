@@ -376,5 +376,22 @@ All background cache and click-tracking goroutines (`cache.Set`, `cache.Delete`,
 URL deletion deactivates PostgreSQL first (`is_active = false`) before deleting the Redis key (`cache.Delete`). Executing cache deletion prior to DB write risks a race condition where a concurrent request repopulates Redis with live data if the DB update fails or takes longer than expected. DB-first invalidation ensures PostgreSQL remains consistent as the authoritative source of truth.
 
 **Known gaps (deliberately deferred):**
-- Structured logging with `slog` and trace propagation deferred to Day 12
 - Graceful shutdown and multi-stage Docker build deferred to Day 13
+
+## Day 12 — Structured Logging with slog and Request IDs
+
+**Structured JSON Logging (`slog.JSONHandler`)**
+Replaced unstructured text logs (`fmt.Printf`/`log.Printf`) with Go standard library `log/slog` structured JSON events (`slog.NewJSONHandler`). Emitting structured key-value events to `os.Stdout` enables log aggregators (Datadog, Grafana Loki, CloudWatch) to automatically index numeric metrics (`status`, `latency_ms`) and categorical metadata (`method`, `path`, `ip`) without brittle regex parsing.
+
+**Distributed Tracing & Request ID Protocol (`X-Request-ID`)**
+`LoggingMiddleware` inspects incoming HTTP requests for an existing `X-Request-ID` header (reusing upstream identifiers from reverse proxies like Cloudflare or Nginx). If missing, a nanosecond-timestamp string ID (`strconv.FormatInt(time.Now().UnixNano(), 10)`) is generated. The `X-Request-ID` header is written to response headers prior to executing downstream handlers (`next.ServeHTTP`) to guarantee header delivery before response body or status code flushing occurs.
+
+**Decoupled Context Logger (`internal/ctxlog`)**
+Context-logging helpers (`WithLogger` and `GetLogger`) are isolated inside `internal/ctxlog` rather than `internal/handler`. This preserves Clean Architecture dependency boundaries: services (`internal/service`) and database repositories (`internal/repository/postgres`) extract request-scoped loggers from `context.Context` without creating an architectural dependency on HTTP handler transport code.
+
+**Response Status Interception (`responseWriter` Wrapper)**
+Standard Go `http.ResponseWriter` does not expose an accessor for the HTTP status code written by downstream handlers. `responseWriter` embeds `http.ResponseWriter` anonymously to intercept `WriteHeader(code int)` and record `rw.statusCode` (defaulting to `200 OK`). After `next.ServeHTTP` completes, the middleware emits a single `INFO` log line containing `method`, `path`, `status`, `latency_ms`, `ip`, and the inherited `request_id`.
+
+**Known gaps (deliberately deferred):**
+- W3C Trace Context (`traceparent` header) and OpenTelemetry distributed tracing across external microservice boundaries deferred to future scope.
+- Graceful shutdown and multi-stage Docker build deferred to Day 13.

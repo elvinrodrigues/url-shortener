@@ -5,8 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 
+	"github.com/elvinrodrigues/url-shortener/internal/ctxlog"
 	"github.com/elvinrodrigues/url-shortener/internal/domain"
 	"github.com/lib/pq"
 )
@@ -36,7 +37,7 @@ func (r *URLPostgres) Create(ctx context.Context, req *domain.CreateURLRequest, 
 }
 
 func (r *URLPostgres) GetByCode(ctx context.Context, shortCode string) (*domain.URL, error) {
-	log.Printf("[DB] GetByCode query executed for code: %s", shortCode)
+	ctxlog.GetLogger(ctx, slog.Default()).Debug("db querry", "code", shortCode)
 	query := "SELECT long_url,expires_at FROM urls WHERE short_code = $1 and is_active=true"
 	var url = &domain.URL{}
 	err := r.db.QueryRowContext(ctx, query, shortCode).Scan(&url.LongURL, &url.ExpiresAt)

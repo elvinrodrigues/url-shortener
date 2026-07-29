@@ -2,7 +2,9 @@ package main
 
 import (
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/elvinrodrigues/url-shortener/internal/config"
@@ -38,6 +40,7 @@ func main() {
 
 	jwtSecret := []byte(cfg.JwtSecret)
 	auth := handler.AuthMiddleware(jwtSecret)
+
 	rateLimiter := handler.RateLimitMiddleware(urlCache.Client(), 10, time.Minute)
 
 	mux := http.NewServeMux()
@@ -53,7 +56,12 @@ func main() {
 
 	mux.Handle("GET /stats/{code}", auth(handler.RequireAuth(http.HandlerFunc(h.GetStats))))
 
-	if err := http.ListenAndServe(cfg.Port, mux); err != nil {
-		log.Fatalf("Server error: %v", err)
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	logging := handler.LoggingMiddleware(logger)
+
+	logger.Info("server starting", "port", cfg.Port)
+	if err := http.ListenAndServe(cfg.Port, logging(mux)); err != nil {
+		logger.Error("server error", "error", err)
 	}
 }

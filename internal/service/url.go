@@ -3,10 +3,11 @@ package service
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net/url"
 	"time"
 
+	"github.com/elvinrodrigues/url-shortener/internal/ctxlog"
 	"github.com/elvinrodrigues/url-shortener/internal/domain"
 	"github.com/elvinrodrigues/url-shortener/internal/shortcode"
 	"golang.org/x/sync/singleflight"
@@ -55,7 +56,7 @@ func (s *urlService) Shorten(ctx context.Context, req domain.CreateURLRequest) (
 			if !errors.Is(err, domain.ErrURLDuplicate) {
 				return nil, err
 			}
-			log.Printf("short code collision, retrying: attempt=%d code_len=%d", attempt, codeLen)
+			ctxlog.GetLogger(ctx, slog.Default()).Warn("short code collision, retrying", "attempt", attempt, "code_len", codeLen)
 		} else {
 			return url, nil
 		}
@@ -72,13 +73,13 @@ func (s *urlService) Redirect(ctx context.Context, code string) (string, error) 
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
 			if err := s.repo.IncrementClicks(ctx, code); err != nil {
-				log.Printf("async click increment failed for code %s: %v", code, err)
+				ctxlog.GetLogger(ctx, slog.Default()).Error("async click increment failed", "code", code, "error", err)
 			}
 		}()
 		return longURL, nil
 	}
 	if !errors.Is(err, domain.ErrCacheMiss) {
-		log.Printf("[WARN] cache get failed for code %s, falling back to DB: %v", code, err)
+		ctxlog.GetLogger(ctx, slog.Default()).Warn("cache get failed, falling back to db", "code", code, "error", err)
 	}
 
 	val, err, _ := s.sf.Do(code, func() (any, error) {
@@ -97,7 +98,7 @@ func (s *urlService) Redirect(ctx context.Context, code string) (string, error) 
 		cacheCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		if err := s.cache.Set(cacheCtx, code, url.LongURL, ttl); err != nil {
-			log.Printf("failed to cache %s: %v", url.ShortCode, err)
+			ctxlog.GetLogger(ctx, slog.Default()).Warn("failed to set cache", "code", url.ShortCode, "error", err)
 		}
 
 		return url.LongURL, nil
@@ -110,7 +111,7 @@ func (s *urlService) Redirect(ctx context.Context, code string) (string, error) 
 		defer cancel()
 
 		if err := s.repo.IncrementClicks(ctx, code); err != nil {
-			log.Printf("async click increment failed for code %s: %v", code, err)
+			ctxlog.GetLogger(ctx, slog.Default()).Error("async click increment failed", "code", code, "error", err)
 		}
 	}()
 	return val.(string), nil
@@ -126,7 +127,7 @@ func (s *urlService) Delete(ctx context.Context, code string, userID int64) erro
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		if err := s.cache.Delete(ctx, code); err != nil {
-			log.Printf("[WARN] delete cache failed for code %s: %v", code, err)
+			ctxlog.GetLogger(ctx, slog.Default()).Warn("cache delete failed after deactivation", "code", code, "error", err)
 		}
 	}()
 
