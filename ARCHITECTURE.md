@@ -339,5 +339,24 @@ If Redis is down or returns a script error, `RateLimitMiddleware` catches the er
 Client IP is extracted via `realIP(r)`, checking `X-Forwarded-For` first (for reverse proxy/load balancer compatibility) with fallback to `net.SplitHostPort(r.RemoteAddr)`. When rate limited, the server responds with `429 Too Many Requests`, sets `Retry-After: 60`, and returns JSON `{"error":"rate limit exceeded"}`.
 
 **Known gaps (deliberately deferred):**
-- Cache stampede prevention on concurrent cache misses deferred to Day 10 (`singleflight`)
 - Rate limiting is per-IP only; per-authenticated-user or per-API-key rate limiting tiers are not implemented
+
+## Day 10 — Cache Stampede Prevention with singleflight
+
+**Cache Stampede (Thundering Herd) Vulnerability**
+When a popular short code's cache entry expires or is flushed, concurrent requests for that key all experience a Redis cache miss simultaneously. Without in-process coalescing, all concurrent requests hit PostgreSQL with identical `SELECT` queries (`GetByCode`) before the first request can complete and populate Redis. In load testing, 50 concurrent requests produced 50 distinct database queries for 1 single URL lookup.
+
+**In-Process Coalescing via `singleflight.Group`**
+`singleflight.Group` (`golang.org/x/sync/singleflight`) coalesces concurrent in-flight requests for the same key. When multiple goroutines invoke `s.sf.Do(code, fn)` simultaneously with the same short code, only the first goroutine executes `fn` (the database fetch and cache write). All other goroutines block and share the exact same returned values when `fn` completes. Under load testing (`hey -n 50 -c 50`), 50 concurrent requests resulted in **exactly 1 PostgreSQL query**.
+
+**Cache Read Order: Cache-First before `sf.Do()`**
+The initial Redis `cache.Get` check remains **outside and before** `sf.Do()`. Cache hits execute in ~0.8ms without touching singleflight locks or channels. `singleflight` is applied only on a cache miss to deduplicate expensive database reads.
+
+**Synchronous Cache Population Inside `sf.Do()`**
+`s.cache.Set` is executed **synchronously** inside `sf.Do()` before `sf.Do()` returns. If cache population were asynchronous (launched in a background goroutine), `sf.Do()` would return and unblock waiting goroutines before Redis was populated, allowing subsequent requests arriving a fraction of a millisecond later to miss Redis and trigger a second database query.
+
+**Decoupled Async Analytics Outside `sf.Do()`**
+`IncrementClicks` is executed in an asynchronous background goroutine **outside `sf.Do()`** after `sf.Do()` completes successfully. Because `sf.Do()` executes its function body only once for coalesced callers, putting click tracking inside `sf.Do()` would drop click analytics for all waiting requests. Executing `IncrementClicks` per caller outside `sf.Do()` ensured click count in PostgreSQL increased by exactly 50 (from 51 to 101) during 50 concurrent requests.
+
+**Known gaps (deliberately deferred):**
+- Singleflight coalesces concurrent requests within a single application instance (in-process). Distributing singleflight across multiple server instances (distributed locking / Redis mutex) is not implemented.

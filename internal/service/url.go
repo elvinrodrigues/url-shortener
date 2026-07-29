@@ -9,11 +9,13 @@ import (
 
 	"github.com/elvinrodrigues/url-shortener/internal/domain"
 	"github.com/elvinrodrigues/url-shortener/internal/shortcode"
+	"golang.org/x/sync/singleflight"
 )
 
 type urlService struct {
 	repo  domain.URLRepository
 	cache domain.URLCache
+	sf    singleflight.Group
 }
 
 func New(r domain.URLRepository, c domain.URLCache) domain.URLService {
@@ -80,31 +82,39 @@ func (s *urlService) Redirect(ctx context.Context, code string) (string, error) 
 		log.Printf("[WARN] cache get failed for code %s, falling back to DB: %v", code, err)
 	}
 
-	url, err := s.repo.GetByCode(ctx, code)
+	val, err, _ := s.sf.Do(code, func() (any, error) {
 
-	if err != nil {
-		return "", err
-	}
+		url, err := s.repo.GetByCode(ctx, code)
 
-	if url.ExpiresAt != nil && time.Now().After(*url.ExpiresAt) {
-		return "", domain.ErrURLExpired
-	}
+		if err != nil {
+			return "", err
+		}
 
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
+		if url.ExpiresAt != nil && time.Now().After(*url.ExpiresAt) {
+			return "", domain.ErrURLExpired
+		}
+
 		ttl := determineTTL(url.ExpiresAt)
 		if err := s.cache.Set(ctx, code, url.LongURL, ttl); err != nil {
 			log.Printf("failed to cache %s: %v", url.ShortCode, err)
 		}
 
-		if err := s.repo.IncrementClicks(ctx, url.ShortCode); err != nil {
-			log.Printf("async click increment failed for code %s: %v", url.ShortCode, err)
+		return url.LongURL, nil
+	})
+	if err != nil {
+		return "", err
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		if err := s.repo.IncrementClicks(ctx, code); err != nil {
+			log.Printf("async click increment failed for code %s: %v", code, err)
 		}
 	}()
-
-	return url.LongURL, nil
+	return val.(string), nil
 }
+
 func (s *urlService) Delete(ctx context.Context, code string, userID int64) error {
 	err := s.repo.Deactivate(ctx, code, userID)
 
