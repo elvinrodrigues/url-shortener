@@ -360,3 +360,21 @@ The initial Redis `cache.Get` check remains **outside and before** `sf.Do()`. Ca
 
 **Known gaps (deliberately deferred):**
 - Singleflight coalesces concurrent requests within a single application instance (in-process). Distributing singleflight across multiple server instances (distributed locking / Redis mutex) is not implemented.
+
+## Day 11 — Week 2 Hardening (Redis Failure Audit, Context Timeouts, and Edge Cases)
+
+**Redis Failure Resilience & Fallback Strategy**
+PostgreSQL is the single atomic source of truth; Redis is an ephemeral read-side optimization. On read operations (`cache.Get`), Redis failures other than `domain.ErrCacheMiss` are logged as `[WARN]` and allowed to fall through to PostgreSQL. The service maintains 100% request availability at slightly higher database latency (~2ms vs ~0.8ms). On write operations (`cache.Set`, `cache.Delete`), Redis failures are caught, logged at `[WARN]`, and ignored, returning success to the client because the primary database operation succeeded.
+
+**Context Timeout Hardening & Client Disconnect Isolation**
+All background cache and click-tracking goroutines (`cache.Set`, `cache.Delete`, `IncrementClicks`) use a decoupled `context.Background()` with a strict 3-second timeout (`context.WithTimeout`). Passing derived HTTP request contexts (`r.Context()`) to background goroutines opens a race condition: if an HTTP client disconnects mid-request, the parent context cancels, causing background operations like `cache.Set` inside `singleflight.Do` to fail prematurely. Utilizing `context.Background()` guarantees cache population completes for waiting goroutines regardless of client connection state.
+
+**TTL Edge Case Boundaries & Expiry Synchronization**
+`determineTTL` calculates cache expiration as `min(time.Until(ExpiresAt), 1 hour)`. For URLs expiring within seconds, Redis TTL is constrained to the exact remaining life of the link. If a URL is already expired (`ttl <= 0`), `determineTTL` falls back to `1s` rather than `0` (which `go-redis` interprets as no expiration/persist forever). This guarantees Redis automatically evicts expired keys, preventing stale cache hits from serving expired links past their `expires_at` timestamp.
+
+**DB-First Invalidation Order**
+URL deletion deactivates PostgreSQL first (`is_active = false`) before deleting the Redis key (`cache.Delete`). Executing cache deletion prior to DB write risks a race condition where a concurrent request repopulates Redis with live data if the DB update fails or takes longer than expected. DB-first invalidation ensures PostgreSQL remains consistent as the authoritative source of truth.
+
+**Known gaps (deliberately deferred):**
+- Structured logging with `slog` and trace propagation deferred to Day 12
+- Graceful shutdown and multi-stage Docker build deferred to Day 13

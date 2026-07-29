@@ -78,7 +78,6 @@ func (s *urlService) Redirect(ctx context.Context, code string) (string, error) 
 		return longURL, nil
 	}
 	if !errors.Is(err, domain.ErrCacheMiss) {
-		// Line 79 — add code and actual err:
 		log.Printf("[WARN] cache get failed for code %s, falling back to DB: %v", code, err)
 	}
 
@@ -95,7 +94,9 @@ func (s *urlService) Redirect(ctx context.Context, code string) (string, error) 
 		}
 
 		ttl := determineTTL(url.ExpiresAt)
-		if err := s.cache.Set(ctx, code, url.LongURL, ttl); err != nil {
+		cacheCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if err := s.cache.Set(cacheCtx, code, url.LongURL, ttl); err != nil {
 			log.Printf("failed to cache %s: %v", url.ShortCode, err)
 		}
 

@@ -31,10 +31,7 @@ func NewRedisURLCache(addr string, defaultTTL time.Duration) (*RedisURLCache, er
 	if err := client.Ping(ctx).Err(); err != nil {
 		return &RedisURLCache{client: client, ttl: defaultTTL}, fmt.Errorf("redis ping %w:", err)
 	}
-	return &RedisURLCache{
-		client: client,
-		ttl:    defaultTTL,
-	}, nil
+	return &RedisURLCache{client: client, ttl: defaultTTL}, nil
 }
 
 func (c *RedisURLCache) Get(ctx context.Context, code string) (string, error) {
