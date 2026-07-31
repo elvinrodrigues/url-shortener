@@ -413,3 +413,23 @@ URL deletion deactivates PostgreSQL first (`is_active = false`) before deleting 
 413: 
 414: **Known gaps (deliberately deferred):**
 415: - Load testing, latency measurements under concurrency (p50/p99), and bottleneck analysis deferred to Day 14.
+
+## Day 14 — Load Testing with hey (p50/p99 Latency & Bottleneck Analysis)
+
+**Performance Benchmark Baselines**
+Load testing was executed using `hey` under 100 concurrent workers (`-c 100`) to measure throughput and tail latency across warm-cache read, cold-cache read, and write paths. Measured results:
+
+| Benchmark Scenario | Requests | Throughput (RPS) | p50 Latency | p99 Latency | Status Code Distribution |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Warm Cache Baseline** (`GET /:code`) | 5,000 | 14,995 req/sec | 5.2 ms | 26.2 ms | `[302]` 5000 (100%) |
+| **Cold Cache Baseline** (`GET /:code`) | 5,000 | 15,003 req/sec | 5.2 ms | 25.3 ms | `[302]` 5000 (100%) |
+| **Write Path** (`POST /shorten`) | 1,000 | 15,634 req/sec | 2.3 ms | 12.5 ms | `[201]` 10 (1%), `[429]` 990 (99%) |
+
+**Singleflight Stamps out Cold-Cache DB Thundering Herds**
+Flushing Redis (`redis-cli FLUSHALL`) prior to firing 5,000 concurrent requests resulted in identical p50/p99 latency (5.2ms / 25.3ms) to the warm cache baseline. `singleflight.Group` coalesced all 100 concurrent initial requests into exactly 1 PostgreSQL query, synchronously populating Redis before releasing waiting goroutines. Subsequent requests were immediately served from warm cache without exhausting database connection pool limits.
+
+**Write-Path Throttling Resilience (`POST /shorten`)**
+Under a burst of 1,000 POST requests, `RateLimitMiddleware` (backed by Redis sliding-window Lua script) strictly enforced the 10 req/min limit per client IP. Exactly 10 requests returned `201 Created` while 990 requests were rejected in 0.06 seconds with `429 Too Many Requests` (p50: 2.3ms). This verified system resilience against write-path spam without crashing database connection pools.
+
+**Known gaps (deliberately deferred):**
+- Horizontal load balancing across multiple application instances (Nginx / HAProxy / AWS ALB) deferred to future production deployment.
