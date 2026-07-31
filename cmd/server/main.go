@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/elvinrodrigues/url-shortener/internal/config"
@@ -61,7 +65,42 @@ func main() {
 	logging := handler.LoggingMiddleware(logger)
 
 	logger.Info("server starting", "port", cfg.Port)
-	if err := http.ListenAndServe(cfg.Port, logging(mux)); err != nil {
-		logger.Error("server error", "error", err)
+
+	srv := &http.Server{
+		Addr:         cfg.Port,
+		Handler:      logging(mux),
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
+
+	go func() {
+		logger.Info("server starting", "addr", srv.Addr)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("server error", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	sig := <-quit
+
+	logger.Info("shutdown signal received", "signal", sig.String())
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		logger.Error("forced shutdown", "error", err)
+	}
+
+	if err := db.Close(); err != nil {
+		logger.Error("database close error", "error", err)
+	}
+
+	logger.Info("server shut down cleanly")
+
 }

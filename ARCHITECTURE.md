@@ -375,23 +375,41 @@ All background cache and click-tracking goroutines (`cache.Set`, `cache.Delete`,
 **DB-First Invalidation Order**
 URL deletion deactivates PostgreSQL first (`is_active = false`) before deleting the Redis key (`cache.Delete`). Executing cache deletion prior to DB write risks a race condition where a concurrent request repopulates Redis with live data if the DB update fails or takes longer than expected. DB-first invalidation ensures PostgreSQL remains consistent as the authoritative source of truth.
 
-**Known gaps (deliberately deferred):**
-- Graceful shutdown and multi-stage Docker build deferred to Day 13
-
-## Day 12 — Structured Logging with slog and Request IDs
-
-**Structured JSON Logging (`slog.JSONHandler`)**
-Replaced unstructured text logs (`fmt.Printf`/`log.Printf`) with Go standard library `log/slog` structured JSON events (`slog.NewJSONHandler`). Emitting structured key-value events to `os.Stdout` enables log aggregators (Datadog, Grafana Loki, CloudWatch) to automatically index numeric metrics (`status`, `latency_ms`) and categorical metadata (`method`, `path`, `ip`) without brittle regex parsing.
-
-**Distributed Tracing & Request ID Protocol (`X-Request-ID`)**
-`LoggingMiddleware` inspects incoming HTTP requests for an existing `X-Request-ID` header (reusing upstream identifiers from reverse proxies like Cloudflare or Nginx). If missing, a nanosecond-timestamp string ID (`strconv.FormatInt(time.Now().UnixNano(), 10)`) is generated. The `X-Request-ID` header is written to response headers prior to executing downstream handlers (`next.ServeHTTP`) to guarantee header delivery before response body or status code flushing occurs.
-
-**Decoupled Context Logger (`internal/ctxlog`)**
-Context-logging helpers (`WithLogger` and `GetLogger`) are isolated inside `internal/ctxlog` rather than `internal/handler`. This preserves Clean Architecture dependency boundaries: services (`internal/service`) and database repositories (`internal/repository/postgres`) extract request-scoped loggers from `context.Context` without creating an architectural dependency on HTTP handler transport code.
-
-**Response Status Interception (`responseWriter` Wrapper)**
-Standard Go `http.ResponseWriter` does not expose an accessor for the HTTP status code written by downstream handlers. `responseWriter` embeds `http.ResponseWriter` anonymously to intercept `WriteHeader(code int)` and record `rw.statusCode` (defaulting to `200 OK`). After `next.ServeHTTP` completes, the middleware emits a single `INFO` log line containing `method`, `path`, `status`, `latency_ms`, `ip`, and the inherited `request_id`.
-
-**Known gaps (deliberately deferred):**
-- W3C Trace Context (`traceparent` header) and OpenTelemetry distributed tracing across external microservice boundaries deferred to future scope.
-- Graceful shutdown and multi-stage Docker build deferred to Day 13.
+378: **Known gaps (deliberately deferred):**
+379: - Structured logging with slog deferred to Day 12
+380: - Graceful shutdown and multi-stage Docker build deferred to Day 13
+381: 
+382: ## Day 12 — Structured Logging with slog and Request IDs
+383: 
+384: **Structured JSON Logging (`slog.JSONHandler`)**
+385: Replaced unstructured text logs (`fmt.Printf`/`log.Printf`) with Go standard library `log/slog` structured JSON events (`slog.NewJSONHandler`). Emitting structured key-value events to `os.Stdout` enables log aggregators (Datadog, Grafana Loki, CloudWatch) to automatically index numeric metrics (`status`, `latency_ms`) and categorical metadata (`method`, `path`, `ip`) without brittle regex parsing.
+386: 
+387: **Distributed Tracing & Request ID Protocol (`X-Request-ID`)**
+388: `LoggingMiddleware` inspects incoming HTTP requests for an existing `X-Request-ID` header (reusing upstream identifiers from reverse proxies like Cloudflare or Nginx). If missing, a nanosecond-timestamp string ID (`strconv.FormatInt(time.Now().UnixNano(), 10)`) is generated. The `X-Request-ID` header is written to response headers prior to executing downstream handlers (`next.ServeHTTP`) to guarantee header delivery before response body or status code flushing occurs.
+389: 
+390: **Decoupled Context Logger (`internal/ctxlog`)**
+391: Context-logging helpers (`WithLogger` and `GetLogger`) are isolated inside `internal/ctxlog` rather than `internal/handler`. This preserves Clean Architecture dependency boundaries: services (`internal/service`) and database repositories (`internal/repository/postgres`) extract request-scoped loggers from `context.Context` without creating an architectural dependency on HTTP handler transport code.
+392: 
+393: **Response Status Interception (`responseWriter` Wrapper)**
+394: Standard Go `http.ResponseWriter` does not expose an accessor for the HTTP status code written by downstream handlers. `responseWriter` embeds `http.ResponseWriter` anonymously to intercept `WriteHeader(code int)` and record `rw.statusCode` (defaulting to `200 OK`). After `next.ServeHTTP` completes, the middleware emits a single `INFO` log line containing `method`, `path`, `status`, `latency_ms`, `ip`, and the inherited `request_id`.
+395: 
+396: **Known gaps (deliberately deferred):**
+397: - W3C Trace Context (`traceparent` header) and OpenTelemetry distributed tracing across external microservice boundaries deferred to future scope.
+398: - Graceful shutdown and multi-stage Docker build deferred to Day 13.
+399: 
+400: ## Day 13 — Graceful Shutdown & Multi-Stage Docker Build
+401: 
+402: **3-Phase Graceful Shutdown Sequence**
+403: `cmd/server/main.go` intercepts `SIGINT` (Ctrl+C) and `SIGTERM` (Docker/Kubernetes termination) using a buffered signal channel (`make(chan os.Signal, 1)`). Shutdown follows a strict 3-phase sequence: (1) `srv.Shutdown(ctx)` immediately stops accepting new incoming connections, (2) in-flight HTTP handler goroutines are given up to 30 seconds (`context.WithTimeout`) to complete writing responses, and (3) `db.Close()` releases database connection pool resources. Closing DB connections prior to draining in-flight requests would cause active queries to fail mid-flight with `sql: database is closed`.
+404: 
+405: **`http.ErrServerClosed` Filtering**
+406: When `srv.Shutdown()` is invoked, `srv.ListenAndServe()` unblocks and returns `http.ErrServerClosed`. `main.go` explicitly filters this sentinel error (`!errors.Is(err, http.ErrServerClosed)`) to prevent intentional graceful shutdowns from logging false-positive error alerts in monitoring platforms.
+407: 
+408: **Multi-Stage Docker Build (`golang:alpine` -> `scratch`)**
+409: The application container uses a two-stage build architecture. Stage 1 (`golang:alpine` as `builder`) compiles a static Linux binary (`CGO_ENABLED=0`) with symbol stripping (`-ldflags="-w -s"`). Stage 2 (`scratch`) starts from an empty 0-byte image and copies only the compiled binary and system TLS root certificates (`ca-certificates.crt`). Throwing away the compiler toolchain, package managers, and source code reduces the final Docker image size from **604MB to 12MB** (98% reduction) and eliminates the container attack surface (zero `/bin/sh` shell or OS utilities available).
+410: 
+411: **Full-Stack Docker Compose Orchestration & Health Checks**
+412: `docker-compose.yml` orchestrates PostgreSQL 15, Redis 7, and the application container on an isolated bridge network. To resolve the database startup race condition (where Go boots in ~5ms while Postgres takes ~3s to initialize disk files), the Postgres service defines an explicit healthcheck (`pg_isready -U appuser -d urlshortener`). The application service enforces `depends_on: postgres: condition: service_healthy`, holding app startup until Postgres is 100% ready to receive queries. Schema migrations are auto-executed on initial boot via volume mount `./migrations:/docker-entrypoint-initdb.d`.
+413: 
+414: **Known gaps (deliberately deferred):**
+415: - Load testing, latency measurements under concurrency (p50/p99), and bottleneck analysis deferred to Day 14.

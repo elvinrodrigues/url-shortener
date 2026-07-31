@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: urlshortener
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: password123
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d urlshortener"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./migrations:/docker-entrypoint-initdb.d
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgres://appuser:password123@postgres:5432/urlshortener?sslmode=disable
+      REDIS_ADDR: redis:6379
+      JWT_SECRET: supersecretkey
+      PORT: ":8000"
+      BASE_URL: "http://localhost:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
