@@ -20,7 +20,10 @@ type contextKey string
 const contextKeyUserID contextKey = "userID"
 
 type CustomClaims struct {
-	UserID int64 `json:"user_id"`
+	UserID    int64  `json:"user_id"`
+	Email     string `json:"email,omitempty"`
+	Name      string `json:"name,omitempty"`
+	AvatarURL string `json:"avatar_url,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -186,3 +189,20 @@ var slidingWindowScript = redis.NewScript(`
 
 	return 1
 `)
+
+func CORSMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Request-ID")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+

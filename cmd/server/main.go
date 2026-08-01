@@ -47,10 +47,14 @@ func main() {
 
 	rateLimiter := handler.RateLimitMiddleware(urlCache.Client(), 10, time.Minute)
 
+	authService := service.NewAuthService(repo, jwtSecret, cfg.GoogleClientID)
+	authHandler := handler.NewAuthHandler(authService)
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", h.HealthCheck)
 	mux.HandleFunc("GET /{code}", h.Redirect)
+	mux.HandleFunc("POST /auth/google", authHandler.GoogleAuth)
 
 	// POST /shorten uses optional auth (attaches userID if token is sent)
 	mux.Handle("POST /shorten", rateLimiter(auth(http.HandlerFunc(h.Shorten))))
@@ -59,6 +63,7 @@ func main() {
 	mux.Handle("DELETE /{code}", auth(handler.RequireAuth(http.HandlerFunc(h.Delete))))
 
 	mux.Handle("GET /stats/{code}", auth(handler.RequireAuth(http.HandlerFunc(h.GetStats))))
+	mux.Handle("GET /user/urls", auth(handler.RequireAuth(http.HandlerFunc(h.GetUserURLs))))
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
@@ -68,7 +73,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:         cfg.Port,
-		Handler:      logging(mux),
+		Handler:      handler.CORSMiddleware(logging(mux)),
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,

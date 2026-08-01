@@ -13,4 +13,5 @@ var (
 	ErrCustomCodeInvalid = errors.New("url: invalid custom code")
 	ErrCacheMiss         = errors.New("cache: miss")
 	ErrNotImplemented    = errors.New("not implemented")
+	ErrEmailConflict     = errors.New("user: email already linked to another account")
 )

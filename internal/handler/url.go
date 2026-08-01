@@ -162,3 +162,36 @@ func (h *URLHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 
 }
+
+func (h *URLHandler) GetUserURLs(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	userID := userIDFromContext(r.Context())
+	if userID == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	urls, err := h.serv.GetUserURLs(r.Context(), *userID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	var response []GetStatsResponse
+	for _, u := range urls {
+		response = append(response, GetStatsResponse{
+			ShortCode:  u.ShortCode,
+			LongURL:    u.LongURL,
+			ClickCount: u.ClickCount,
+			CreatedAt:  u.CreatedAt,
+			ExpiresAt:  u.ExpiresAt,
+			IsActive:   u.IsActive,
+		})
+	}
+	if response == nil {
+		response = []GetStatsResponse{}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}

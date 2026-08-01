@@ -6,11 +6,12 @@ import (
 )
 
 type Config struct {
-	DatabaseURL string
-	Port        string
-	BaseURL     string
-	JwtSecret   string
-	RedisAddr   string
+	DatabaseURL    string
+	Port           string
+	BaseURL        string
+	JwtSecret      string
+	RedisAddr      string
+	GoogleClientID string
 }
 
 func Load() (*Config, error) {
@@ -38,6 +39,8 @@ func Load() (*Config, error) {
 	if cfg.RedisAddr == "" {
 		cfg.RedisAddr = "localhost:6379"
 	}
+
+	cfg.GoogleClientID = os.Getenv("GOOGLE_CLIENT_ID")
 
 	return cfg, nil
 }

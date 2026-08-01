@@ -147,6 +147,10 @@ func (s *urlService) GetStats(ctx context.Context, code string, userID int64) (*
 	return url, nil
 }
 
+func (s *urlService) GetUserURLs(ctx context.Context, userID int64) ([]*domain.URL, error) {
+	return s.repo.GetUserURLs(ctx, userID)
+}
+
 func validateURL(longURL string) error {
 	if longURL == "" {
 		return domain.ErrURLInvalid

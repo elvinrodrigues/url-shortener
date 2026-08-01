@@ -28,13 +28,15 @@ type URLRepository interface {
 	IncrementClicks(ctx context.Context, shortCode string) error
 	Deactivate(ctx context.Context, shortCode string, userID int64) error
 	GetStats(ctx context.Context, shortCode string) (*URL, error)
+	GetUserURLs(ctx context.Context, userID int64) ([]*URL, error)
 }
 
 type URLService interface {
 	Shorten(ctx context.Context, req CreateURLRequest) (*URL, error)
 	Redirect(ctx context.Context, code string) (string, error)
-	Delete(ctx context.Context, code string,userID int64) error
-	GetStats(ctx context.Context, code string,userID int64) (*URL, error)
+	Delete(ctx context.Context, code string, userID int64) error
+	GetStats(ctx context.Context, code string, userID int64) (*URL, error)
+	GetUserURLs(ctx context.Context, userID int64) ([]*URL, error)
 }
 
 type URLCache interface{

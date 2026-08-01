@@ -94,3 +94,25 @@ func (r *URLPostgres) GetStats(ctx context.Context, shortCode string) (*domain.U
 	}
 	return url, nil
 }
+
+func (r *URLPostgres) GetUserURLs(ctx context.Context, userID int64) ([]*domain.URL, error) {
+	query := `SELECT id, short_code, long_url, created_at, expires_at, click_count, is_active, user_id FROM urls WHERE user_id = $1 AND is_active = true ORDER BY created_at DESC`
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("postgres get user urls: %w", err)
+	}
+	defer rows.Close()
+
+	var urls []*domain.URL
+	for rows.Next() {
+		var u domain.URL
+		if err := rows.Scan(&u.ID, &u.ShortCode, &u.LongURL, &u.CreatedAt, &u.ExpiresAt, &u.ClickCount, &u.IsActive, &u.UserID); err != nil {
+			return nil, fmt.Errorf("postgres scan user url: %w", err)
+		}
+		urls = append(urls, &u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("postgres rows user urls: %w", err)
+	}
+	return urls, nil
+}
