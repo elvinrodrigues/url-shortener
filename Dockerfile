@@ -13,7 +13,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o url-shortener ./cmd/se
 # stage 2
 FROM scratch
 
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/sll/certs/
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 COPY --from=builder /app/url-shortener /url-shortener
 

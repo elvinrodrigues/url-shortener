@@ -29,6 +29,7 @@ services:
       JWT_SECRET: supersecretkey
       PORT: ":8000"
       BASE_URL: "http://localhost:8000"
+      GOOGLE_CLIENT_ID: "716971806941-d1qktup2q64pttiqr5knron4olf3kudj.apps.googleusercontent.com"
     depends_on:
       postgres:
         condition: service_healthy

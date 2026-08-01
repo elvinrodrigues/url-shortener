@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -25,6 +26,8 @@ func Load() (*Config, error) {
 	cfg.Port = os.Getenv("PORT")
 	if cfg.Port == "" {
 		cfg.Port = ":8000"
+	} else if !strings.HasPrefix(cfg.Port, ":") {
+		cfg.Port = ":" + cfg.Port
 	}
 	cfg.BaseURL = os.Getenv("BASE_URL")
 	if cfg.BaseURL == "" {
