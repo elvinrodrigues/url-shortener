@@ -1,6 +1,18 @@
 {
   "rewrites": [
     {
+      "source": "/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/assets/(.*)",
+      "destination": "/assets/$1"
+    },
+    {
+      "source": "/:code([a-zA-Z0-9_-]+)",
+      "destination": "https://url-shortener-api-sgto.onrender.com/:code"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

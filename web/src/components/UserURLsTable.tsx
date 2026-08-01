@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Search, Copy, Check, ExternalLink, BarChart3, Trash2, RefreshCw, AlertCircle, Lock } from 'lucide-react';
-import { getUserURLs, deleteURL, API_BASE_URL, type URLStats } from '../api';
+import { getUserURLs, deleteURL, type URLStats } from '../api';
 
 interface UserURLsTableProps {
   token: string;
@@ -160,7 +160,7 @@ export const UserURLsTable: React.FC<UserURLsTableProps> = ({
               </tr>
             ) : (
               filteredUrls.map((u) => {
-                const shortUrl = `${API_BASE_URL}/${u.short_code}`;
+                const shortUrl = `${window.location.origin}/${u.short_code}`;
                 const isCopied = copiedCode === u.short_code;
                 const isDeleting = deletingCode === u.short_code;
 
