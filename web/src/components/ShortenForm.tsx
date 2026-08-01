@@ -39,11 +39,21 @@ export const ShortenForm: React.FC<ShortenFormProps> = ({ token, onSuccess }) =>
     }
   };
 
+const RESERVED_KEYWORDS = new Set([
+  'health', 'shorten', 'stats', 'auth', 'user', 'users',
+  'admin', 'api', 'dashboard', 'login', 'logout', 'register',
+  'static', 'assets', 'favicon.ico', 'robots.txt', 'sitemap.xml',
+  'index', 'home'
+]);
+
   const handleCustomCodeChange = (val: string) => {
     setCustomCode(val);
     if (aliasError) setAliasError(null);
-    if (val.trim() && !/^[a-zA-Z0-9_-]+$/.test(val.trim())) {
+    const cleaned = val.trim();
+    if (cleaned && !/^[a-zA-Z0-9_-]+$/.test(cleaned)) {
       setAliasError('Alias can only contain letters, numbers, hyphens & underscores');
+    } else if (cleaned && RESERVED_KEYWORDS.has(cleaned.toLowerCase())) {
+      setAliasError('That alias is a reserved keyword. Please choose another.');
     } else {
       setAliasError(null);
     }
