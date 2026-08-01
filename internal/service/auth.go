@@ -60,7 +60,7 @@ func (s *AuthService) AuthenticateGoogle(ctx context.Context, idToken string) (*
 	}
 
 	if s.googleClientID != "" && gClaims.Aud != s.googleClientID {
-		return nil, errors.New("google token audience mismatch")
+		return nil, fmt.Errorf("google token audience mismatch: token aud=%s vs server=%s", gClaims.Aud, s.googleClientID)
 	}
 
 	user, err := s.userRepo.UpsertGoogleUser(ctx, gClaims.Sub, gClaims.Email, gClaims.Name, gClaims.Picture)
