@@ -19,7 +19,7 @@ interface AuthModalProps {
 
 const GOOGLE_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
-  '522031681947-n509q6tl9f5k3ottib6h9ojir8lhh7jc.apps.googleusercontent.com';
+  '522031681947-n509q6tl9f6k3ottib6h9ojir8lhh7jc.apps.googleusercontent.com';
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
