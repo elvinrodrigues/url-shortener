@@ -17,7 +17,9 @@ interface AuthModalProps {
   onClose: () => void;
 }
 
-const GOOGLE_CLIENT_ID = '716971806941-d1qktup2q64pttiqr5knron4olf3kudj.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID =
+  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+  '716971806941-d1qktup2q64pttiqr5knron4olf3kudj.apps.googleusercontent.com';
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
