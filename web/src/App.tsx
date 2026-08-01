@@ -6,7 +6,7 @@ import { StatsSection } from './components/StatsSection';
 import { RecentHistory, type HistoryItem } from './components/RecentHistory';
 import { UserURLsTable } from './components/UserURLsTable';
 import { AuthModal, type User } from './components/AuthModal';
-import { checkHealth, type CreateURLResponse } from './api';
+import { checkHealth, API_BASE_URL, type CreateURLResponse } from './api';
 import './App.css';
 
 export function App() {
@@ -42,6 +42,13 @@ export function App() {
   });
 
   useEffect(() => {
+    const pathname = window.location.pathname;
+    const pathCode = pathname.substring(1);
+    if (pathCode && !pathCode.includes('.') && pathCode !== 'auth' && pathCode !== 'health') {
+      window.location.href = `${API_BASE_URL}/${pathCode}`;
+      return;
+    }
+
     const verifyHealth = async () => {
       const healthy = await checkHealth();
       setIsHealthy(healthy);
