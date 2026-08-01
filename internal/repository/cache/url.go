@@ -2,8 +2,10 @@ package cache
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/elvinrodrigues/url-shortener/internal/domain"
@@ -20,16 +22,32 @@ func (c *RedisURLCache) Client() *redis.Client {
 }
 
 func NewRedisURLCache(addr string, defaultTTL time.Duration) (*RedisURLCache, error) {
-	client := redis.NewClient(&redis.Options{
-		Addr:            addr,
-		PoolSize:        10,
-		MinIdleConns:    2,
-		ConnMaxIdleTime: 5 * time.Minute,
-	})
+	var opts *redis.Options
+	if strings.HasPrefix(addr, "redis://") || strings.HasPrefix(addr, "rediss://") {
+		var err error
+		opts, err = redis.ParseURL(addr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid redis url %w", err)
+		}
+	} else {
+		opts = &redis.Options{
+			Addr:            addr,
+			PoolSize:        10,
+			MinIdleConns:    2,
+			ConnMaxIdleTime: 5 * time.Minute,
+		}
+		if strings.Contains(addr, "upstash.io") {
+			opts.TLSConfig = &tls.Config{
+				MinVersion: tls.VersionTLS12,
+			}
+		}
+	}
+
+	client := redis.NewClient(opts)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err := client.Ping(ctx).Err(); err != nil {
-		return &RedisURLCache{client: client, ttl: defaultTTL}, fmt.Errorf("redis ping %w:", err)
+		return &RedisURLCache{client: client, ttl: defaultTTL}, fmt.Errorf("redis ping %w", err)
 	}
 	return &RedisURLCache{client: client, ttl: defaultTTL}, nil
 }
