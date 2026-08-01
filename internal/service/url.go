@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/elvinrodrigues/url-shortener/internal/ctxlog"
@@ -49,6 +50,9 @@ func (s *urlService) Shorten(ctx context.Context, req domain.CreateURLRequest) (
 		code, err := shortcode.Generate(codeLen)
 		if err != nil {
 			return nil, err
+		}
+		if reservedCodes[strings.ToLower(code)] {
+			continue
 		}
 
 		url, err := s.repo.Create(ctx, &req, code)
@@ -163,9 +167,34 @@ func validateURL(longURL string) error {
 	return nil
 }
 
+var reservedCodes = map[string]bool{
+	"health":      true,
+	"shorten":     true,
+	"stats":       true,
+	"auth":        true,
+	"user":        true,
+	"users":       true,
+	"admin":       true,
+	"api":         true,
+	"dashboard":   true,
+	"login":       true,
+	"logout":      true,
+	"register":    true,
+	"static":      true,
+	"assets":      true,
+	"favicon.ico": true,
+	"robots.txt":  true,
+	"sitemap.xml": true,
+	"index":       true,
+	"home":        true,
+}
+
 func validateCustomCode(code string) error {
-	if len(code) < 5 || len(code) > 30 {
+	if len(code) < 3 || len(code) > 30 {
 		return domain.ErrCustomCodeInvalid
+	}
+	if reservedCodes[strings.ToLower(code)] {
+		return domain.ErrCustomCodeReserved
 	}
 	return nil
 }

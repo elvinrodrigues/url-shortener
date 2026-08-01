@@ -63,6 +63,9 @@ func (h *URLHandler) Shorten(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnprocessableEntity)
 		case errors.Is(err, domain.ErrCustomCodeInvalid):
 			w.WriteHeader(http.StatusUnprocessableEntity)
+		case errors.Is(err, domain.ErrCustomCodeReserved):
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			json.NewEncoder(w).Encode(map[string]string{"error": "That custom alias is a reserved system keyword. Please choose another alias."})
 		case errors.Is(err, domain.ErrURLShortenFailed):
 			w.WriteHeader(http.StatusServiceUnavailable)
 		default:
