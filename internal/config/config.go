@@ -44,6 +44,9 @@ func Load() (*Config, error) {
 	}
 
 	cfg.GoogleClientID = os.Getenv("GOOGLE_CLIENT_ID")
+	if cfg.GoogleClientID == "" {
+		cfg.GoogleClientID = "522031681947-n509q6tl9f6k3ottib6h9ojir8lhh7jc.apps.googleusercontent.com"
+	}
 
 	return cfg, nil
 }
