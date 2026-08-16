@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -88,6 +89,7 @@ func AuthMiddleware(secret []byte) func(http.Handler) http.Handler {
 			if len(parts) != 2 || parts[0] != "Bearer" {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusUnauthorized)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid authorization header format"})
 				return
 			}
 
@@ -95,13 +97,14 @@ func AuthMiddleware(secret []byte) func(http.Handler) http.Handler {
 
 			token, err := jwt.ParseWithClaims(parts[1], &claims, func(t *jwt.Token) (interface{}, error) {
 				if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, fmt.Errorf("Unexpected signing method: %v", t.Header["al6g"])
+					return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 				}
 				return secret, nil
 			})
 			if err != nil || !token.Valid {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusUnauthorized)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid or expired token"})
 				return
 			}
 
@@ -113,12 +116,12 @@ func AuthMiddleware(secret []byte) func(http.Handler) http.Handler {
 
 func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		userID := userIDFromContext(r.Context())
 
 		if userID == nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "Authentication required"})
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -205,4 +208,3 @@ func CORSMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
-

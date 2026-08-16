@@ -13,3 +13,5 @@ gentoken
 cmd/scratch/
 
 dump.rdb
+
+benchmarks

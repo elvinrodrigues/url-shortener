@@ -187,6 +187,8 @@ var reservedCodes = map[string]bool{
 	"sitemap.xml": true,
 	"index":       true,
 	"home":        true,
+	"404":         true,
+	"410":         true,
 }
 
 func validateCustomCode(code string) error {
