@@ -1,13 +1,13 @@
 {
-  "name": "Wyori — Short Links, Custom Domains & Click Analytics",
-  "short_name": "Wyori",
-  "description": "Shorten, brand, and track every link you share. Custom domains, real-time click analytics, QR codes, and team workspaces.",
+  "name": "Slug — High-Performance Go URL Shortener",
+  "short_name": "Slug",
+  "description": "Fast, reliable URL shortener with sub-millisecond Redis caching, live analytics, and custom aliases. Built with Go 1.22, PostgreSQL, and Redis.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FFFFFF",
+  "background_color": "#000000",
   "theme_color": "#FF5A00",
   "orientation": "portrait-primary",
-  "categories": ["productivity", "business", "utilities"],
+  "categories": ["productivity", "utilities", "developer tools"],
   "lang": "en",
   "icons": [
     {
@@ -19,6 +19,11 @@
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
     }
   ]
 }

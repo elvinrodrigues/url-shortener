@@ -18,7 +18,7 @@ interface LiveDashboardProps {
 
 export const LiveDashboard: React.FC<LiveDashboardProps> = ({
   token,
-  currentUser,
+  currentUser: _currentUser,
   allDisplayLinks,
   onOpenAuth,
   onViewStats,
@@ -85,7 +85,7 @@ export const LiveDashboard: React.FC<LiveDashboardProps> = ({
               letterSpacing: '-0.02em',
             }}
           >
-            {token && currentUser ? `${currentUser.name.split(' ')[0]}'s Links` : 'Recent Links'}
+            Recent Links
           </h2>
 
           {/* Orange Circular Link Counter Badge */}
