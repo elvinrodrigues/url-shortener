@@ -5,6 +5,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/dashboard",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/links",
+      "destination": "/index.html"
+    },
+    {
       "source": "/assets/(.*)",
       "destination": "/assets/$1"
     },

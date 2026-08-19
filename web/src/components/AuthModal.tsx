@@ -1,13 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, Key, LogOut, User as UserIcon } from 'lucide-react';
-import { API_BASE_URL } from '../api';
-
-export interface User {
-  id: number;
-  email: string;
-  name: string;
-  avatar_url: string;
-}
+import { API_BASE_URL, type User } from '../api.ts';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -15,6 +8,7 @@ interface AuthModalProps {
   currentUser: User | null;
   onSaveAuth: (token: string, user: User | null) => void;
   onClose: () => void;
+  onShowToast: (title: string, message?: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 const GOOGLE_CLIENT_ID =
@@ -27,6 +21,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   currentUser,
   onSaveAuth,
   onClose,
+  onShowToast,
 }) => {
   const [error, setError] = useState('');
 
@@ -40,7 +35,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           callback: handleGoogleResponse,
         });
 
-        const btnDiv = document.getElementById('google-signin-btn');
+        const btnDiv = document.getElementById('google-signin-btn-slug');
         if (btnDiv) {
           btnDiv.innerHTML = '';
           (window as any).google.accounts.id.renderButton(btnDiv, {
@@ -73,125 +68,168 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       const data = await res.json();
       onSaveAuth(data.token, data.user);
+      onShowToast('Signed in successfully', `Welcome back, ${data.user.name}!`, 'success');
       onClose();
     } catch (err: any) {
       setError(err.message || 'Authentication error');
+      onShowToast('Auth failed', err.message, 'error');
     }
+  };
+
+  const handleSignOut = () => {
+    onSaveAuth('', null);
+    onShowToast('Signed out', 'Returned to guest mode', 'info');
+    onClose();
   };
 
   if (!isOpen) return null;
 
-  const handleSignOut = () => {
-    onSaveAuth('', null);
-    onClose();
-  };
-
-  /*
-    LOCAL TESTING HANDLER (Uncomment when manual token testing is needed):
-    const [tokenInput, setTokenInput] = useState(currentToken);
-    const handleSave = (e: React.FormEvent) => {
-      e.preventDefault();
-      onSaveAuth(tokenInput.trim(), currentUser);
-      onClose();
-    };
-  */
-
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="glass-panel modal-card" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-title">
-            <Key size={18} className="text-gradient" />
-            <h3>Authentication</h3>
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 100,
+        padding: '1.5rem',
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="glass-panel"
+        style={{
+          width: '100%',
+          maxWidth: '430px',
+          backgroundColor: '#0F0F12',
+          borderRadius: '1.35rem',
+          padding: '1.75rem',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 255, 255, 0.08)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          position: 'relative',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(255, 90, 0, 0.12)',
+                color: '#FF5A00',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Key size={16} />
+            </div>
+            <h3 className="font-display" style={{ fontSize: '1.15rem', fontWeight: 800, color: '#FFFFFF', margin: 0 }}>
+              Authentication
+            </h3>
           </div>
-          <button onClick={onClose} className="btn-close-modal">
+
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-dim)',
+              cursor: 'pointer',
+              padding: '4px',
+              borderRadius: '6px',
+            }}
+          >
             <X size={18} />
           </button>
         </div>
 
-        <div className="modal-body">
-          {currentUser ? (
-            <div className="user-profile-section" style={{ textAlign: 'center', padding: '1rem 0' }}>
-              {currentUser.avatar_url ? (
-                <img
-                  src={currentUser.avatar_url}
-                  alt={currentUser.name}
-                  style={{ width: '64px', height: '64px', borderRadius: '50%', marginBottom: '0.75rem', border: '2px solid rgba(255,255,255,0.2)' }}
-                />
-              ) : (
-                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.75rem' }}>
-                  <UserIcon size={32} />
-                </div>
-              )}
-              <h4 style={{ margin: '0 0 0.25rem', fontSize: '1.1rem', fontWeight: 600 }}>{currentUser.name}</h4>
-              <p style={{ margin: '0 0 1.25rem', color: '#94a3b8', fontSize: '0.875rem' }}>{currentUser.email}</p>
-              <button
-                onClick={handleSignOut}
-                className="btn-secondary-modal"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', margin: '0 auto' }}
+        {currentUser ? (
+          <div style={{ textAlign: 'center', padding: '0.75rem 0' }}>
+            {currentUser.avatar_url ? (
+              <img
+                src={currentUser.avatar_url}
+                alt={currentUser.name}
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  margin: '0 auto 0.85rem',
+                  border: '2px solid #FF5A00',
+                  boxShadow: '0 0 15px rgba(255, 90, 0, 0.35)',
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(255, 90, 0, 0.12)',
+                  color: '#FF5A00',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 0.85rem',
+                  fontSize: '1.3rem',
+                  fontWeight: 800,
+                }}
               >
-                <LogOut size={16} /> Sign Out
-              </button>
-            </div>
-          ) : (
-            <>
-              <p className="modal-desc">
-                Sign in with your Google account to associate short links with your account and manage link analytics.
-              </p>
-
-              <div style={{ display: 'flex', justifyContent: 'center', margin: '1.25rem 0' }}>
-                <div id="google-signin-btn"></div>
+                <UserIcon size={30} />
               </div>
+            )}
+            <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#FFFFFF', margin: '0 0 0.25rem' }}>
+              {currentUser.name}
+            </h4>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+              {currentUser.email}
+            </p>
 
-              {error && (
-                <div style={{ color: '#ef4444', fontSize: '0.875rem', textAlign: 'center', marginBottom: '1rem' }}>
-                  {error}
-                </div>
-              )}
+            <button
+              onClick={handleSignOut}
+              className="btn-icon-action"
+              style={{ width: '100%', color: '#EF4444', borderColor: 'rgba(239, 68, 68, 0.3)', padding: '0.65rem', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <LogOut size={15} />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        ) : (
+          <div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '1.25rem', textAlign: 'left' }}>
+              Sign in with your Google account to associate short links with your account and manage link analytics.
+            </p>
 
-              {/* 
-                LOCAL TESTING SECTION (Uncomment below to re-enable manual token input via go run ./cmd/gentoken)
+            {/* Google Sign-in */}
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '1.25rem 0' }}>
+              <div id="google-signin-btn-slug"></div>
+            </div>
 
-                <div style={{ textAlign: 'center', color: '#64748b', fontSize: '0.75rem', margin: '1rem 0 0.75rem', fontWeight: 600 }} className="font-mono">
-                  — OR MANUAL TOKEN —
-                </div>
-
-                <form onSubmit={handleSave}>
-                  <div className="input-group">
-                    <label htmlFor="jwt-token-input">Manual Bearer Token</label>
-                    <textarea
-                      id="jwt-token-input"
-                      rows={3}
-                      value={tokenInput}
-                      onChange={(e) => setTokenInput(e.target.value)}
-                      placeholder="Paste manual JWT Bearer token here..."
-                      className="token-textarea font-mono"
-                    />
-                  </div>
-
-                  <div className="token-info-box" style={{ marginTop: '0.75rem' }}>
-                    <Info size={16} />
-                    <span>
-                      Or generate a test token using <code>go run ./cmd/gentoken</code>.
-                    </span>
-                  </div>
-
-                  <div className="modal-footer" style={{ marginTop: '1.25rem' }}>
-                    {currentToken && (
-                      <button type="button" onClick={handleSignOut} className="btn-secondary-modal">
-                        Clear Auth
-                      </button>
-                    )}
-                    <button type="submit" className="btn-primary-modal">
-                      <ShieldCheck size={16} />
-                      <span>Save Token</span>
-                    </button>
-                  </div>
-                </form>
-              */}
-            </>
-          )}
-        </div>
+            {error && (
+              <div
+                style={{
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  color: '#EF4444',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: '8px',
+                  fontSize: '0.82rem',
+                  textAlign: 'center',
+                  marginBottom: '1rem',
+                }}
+              >
+                {error}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

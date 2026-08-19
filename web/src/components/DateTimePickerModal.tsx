@@ -143,86 +143,187 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
     if (diffMs <= 0) return 'Expired in past';
     const hours = Math.round(diffMs / (1000 * 60 * 60));
     if (hours < 24) return `in ${hours} hour${hours === 1 ? '' : 's'}`;
-    const days = Math.round(hours / 24);
+    const days = Math.round(diffMs / (1000 * 60 * 60 * 24));
     return `in ${days} day${days === 1 ? '' : 's'}`;
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.82)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 100,
+        padding: '1.5rem',
+      }}
+      onClick={onClose}
+    >
       <div
-        className="glass-panel modal-card"
+        className="glass-panel"
+        style={{
+          width: '100%',
+          maxWidth: '430px',
+          backgroundColor: '#0F0F12',
+          borderRadius: '1.35rem',
+          padding: '1.5rem',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 35px rgba(255, 255, 255, 0.08)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+          position: 'relative',
+          animation: 'fadeSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        }}
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: '440px', width: '92%' }}
       >
-        <div className="modal-header">
-          <div className="modal-title">
-            <CalendarIcon size={18} className="text-gradient" />
-            <h3>Set Expiration Date & Time</h3>
+        {/* Modal Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(255, 90, 0, 0.12)',
+                color: '#FF5A00',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <CalendarIcon size={16} />
+            </div>
+            <h3 className="font-display" style={{ fontSize: '1.15rem', fontWeight: 800, color: '#FFFFFF', margin: 0 }}>
+              Set Expiration Date & Time
+            </h3>
           </div>
-          <button onClick={onClose} className="btn-close-modal">
+
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-dim)',
+              cursor: 'pointer',
+              padding: '4px',
+              borderRadius: '6px',
+            }}
+          >
             <X size={18} />
           </button>
         </div>
 
-        <div className="modal-body" style={{ gap: '1rem', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
           {/* Quick Presets */}
           <div>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }} className="font-mono">
-              <Zap size={12} className="text-accent" /> QUICK PRESETS
-            </span>
+            <div
+              className="font-mono"
+              style={{
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                color: 'var(--text-dim)',
+                marginBottom: '0.45rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+              }}
+            >
+              <Zap size={12} color="#FF5A00" />
+              <span>Quick Presets</span>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
-              <button
-                type="button"
-                className="btn-secondary-modal"
-                style={{ padding: '0.4rem 0.25rem', fontSize: '0.75rem' }}
-                onClick={() => applyPreset(1 * 60 * 60 * 1000)}
-              >
-                1 Hour
-              </button>
-              <button
-                type="button"
-                className="btn-secondary-modal"
-                style={{ padding: '0.4rem 0.25rem', fontSize: '0.75rem' }}
-                onClick={() => applyPreset(24 * 60 * 60 * 1000)}
-              >
-                24 Hours
-              </button>
-              <button
-                type="button"
-                className="btn-secondary-modal"
-                style={{ padding: '0.4rem 0.25rem', fontSize: '0.75rem' }}
-                onClick={() => applyPreset(7 * 24 * 60 * 60 * 1000)}
-              >
-                7 Days
-              </button>
-              <button
-                type="button"
-                className="btn-secondary-modal"
-                style={{ padding: '0.4rem 0.25rem', fontSize: '0.75rem' }}
-                onClick={() => applyPreset(30 * 24 * 60 * 60 * 1000)}
-              >
-                30 Days
-              </button>
+              {[
+                { label: '1 Hour', ms: 1 * 60 * 60 * 1000 },
+                { label: '24 Hours', ms: 24 * 60 * 60 * 1000 },
+                { label: '7 Days', ms: 7 * 24 * 60 * 60 * 1000 },
+                { label: '30 Days', ms: 30 * 24 * 60 * 60 * 1000 },
+              ].map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => applyPreset(p.ms)}
+                  className="btn-icon-action"
+                  style={{
+                    padding: '0.45rem 0.2rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    borderRadius: '7px',
+                    textAlign: 'center',
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Calendar Picker */}
-          <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '0.85rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-              <button type="button" onClick={prevMonth} className="btn-close-modal" style={{ padding: '0.35rem' }}>
+          {/* Calendar Picker Card */}
+          <div
+            style={{
+              background: 'rgba(8, 8, 10, 0.75)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '12px',
+              padding: '0.85rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+              <button
+                type="button"
+                onClick={prevMonth}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '3px',
+                }}
+              >
                 <ChevronLeft size={16} />
               </button>
-              <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+              <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#FFFFFF' }}>
                 {MONTH_NAMES[viewMonth]} {viewYear}
               </span>
-              <button type="button" onClick={nextMonth} className="btn-close-modal" style={{ padding: '0.35rem' }}>
+              <button
+                type="button"
+                onClick={nextMonth}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  padding: '3px',
+                }}
+              >
                 <ChevronRight size={16} />
               </button>
             </div>
 
             {/* Days of week header */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.2rem', textAlign: 'center', fontSize: '0.7rem', color: '#64748b', fontWeight: 600, marginBottom: '0.4rem' }} className="font-mono">
-              <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+            <div
+              className="font-mono"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(7, 1fr)',
+                gap: '0.2rem',
+                textAlign: 'center',
+                fontSize: '0.7rem',
+                color: 'var(--text-dim)',
+                fontWeight: 600,
+                marginBottom: '0.35rem',
+              }}
+            >
+              <span>Su</span>
+              <span>Mo</span>
+              <span>Tu</span>
+              <span>We</span>
+              <span>Th</span>
+              <span>Fr</span>
+              <span>Sa</span>
             </div>
 
             {/* Calendar Grid */}
@@ -248,18 +349,19 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                     onClick={() => handleSelectDay(dayNum)}
                     style={{
                       padding: '0.4rem 0',
-                      borderRadius: '8px',
-                      border: isSelected ? '1px solid #38bdf8' : 'none',
+                      borderRadius: '7px',
+                      border: isSelected ? '1px solid #FF5A00' : 'none',
                       background: isSelected
-                        ? 'linear-gradient(135deg, #0284c7, #0369a1)'
+                        ? 'linear-gradient(135deg, #FF4500, #FF5A00)'
                         : isPast
                         ? 'transparent'
                         : 'rgba(255, 255, 255, 0.03)',
-                      color: isSelected ? '#fff' : isPast ? '#334155' : '#e2e8f0',
+                      color: isSelected ? '#FFFFFF' : isPast ? '#333338' : '#EDEDED',
                       fontSize: '0.8rem',
-                      fontWeight: isSelected ? 700 : 400,
+                      fontWeight: isSelected ? 700 : 500,
                       cursor: isPast ? 'not-allowed' : 'pointer',
                       transition: 'all 0.15s ease',
+                      boxShadow: isSelected ? '0 0 12px rgba(255, 90, 0, 0.4)' : 'none',
                     }}
                   >
                     {dayNum}
@@ -270,9 +372,19 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
           </div>
 
           {/* Clock Time Selector */}
-          <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#94a3b8', fontSize: '0.8rem' }} className="font-mono">
-              <Clock size={15} className="text-accent" />
+          <div
+            style={{
+              background: 'rgba(8, 8, 10, 0.75)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '12px',
+              padding: '0.7rem 0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-dim)', fontSize: '0.8rem' }} className="font-mono">
+              <Clock size={15} color="#FF5A00" />
               <span>TIME:</span>
             </div>
 
@@ -282,7 +394,16 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                 value={hour12}
                 onChange={(e) => handleTimeChange(parseInt(e.target.value), minute, ampm)}
                 className="font-mono"
-                style={{ background: '#1e293b', border: '1px solid #334155', color: '#fff', padding: '0.3rem 0.4rem', borderRadius: '6px', fontSize: '0.85rem' }}
+                style={{
+                  background: '#16161B',
+                  border: '1px solid var(--border-subtle)',
+                  color: '#FFFFFF',
+                  padding: '0.3rem 0.45rem',
+                  borderRadius: '6px',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  cursor: 'pointer',
+                }}
               >
                 {Array.from({ length: 12 }).map((_, i) => (
                   <option key={`h-${i + 1}`} value={i + 1}>
@@ -291,14 +412,23 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                 ))}
               </select>
 
-              <span style={{ fontWeight: 700, color: '#64748b' }}>:</span>
+              <span style={{ fontWeight: 700, color: 'var(--text-dim)' }}>:</span>
 
               {/* Minute Select */}
               <select
                 value={minute}
                 onChange={(e) => handleTimeChange(hour12, parseInt(e.target.value), ampm)}
                 className="font-mono"
-                style={{ background: '#1e293b', border: '1px solid #334155', color: '#fff', padding: '0.3rem 0.4rem', borderRadius: '6px', fontSize: '0.85rem' }}
+                style={{
+                  background: '#16161B',
+                  border: '1px solid var(--border-subtle)',
+                  color: '#FFFFFF',
+                  padding: '0.3rem 0.45rem',
+                  borderRadius: '6px',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  cursor: 'pointer',
+                }}
               >
                 {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => (
                   <option key={`m-${m}`} value={m}>
@@ -308,19 +438,28 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
               </select>
 
               {/* AM/PM Toggle */}
-              <div style={{ display: 'flex', background: '#0f172a', borderRadius: '6px', padding: '2px', border: '1px solid #334155' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  background: '#08080A',
+                  borderRadius: '6px',
+                  padding: '2px',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => handleTimeChange(hour12, minute, 'AM')}
                   style={{
-                    padding: '0.2rem 0.4rem',
-                    fontSize: '0.7rem',
+                    padding: '0.2rem 0.45rem',
+                    fontSize: '0.72rem',
                     borderRadius: '4px',
                     border: 'none',
-                    background: ampm === 'AM' ? '#0284c7' : 'transparent',
-                    color: ampm === 'AM' ? '#fff' : '#64748b',
+                    background: ampm === 'AM' ? 'linear-gradient(135deg, #FF4500, #FF5A00)' : 'transparent',
+                    color: ampm === 'AM' ? '#FFFFFF' : 'var(--text-dim)',
                     fontWeight: 700,
                     cursor: 'pointer',
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   AM
@@ -329,14 +468,15 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                   type="button"
                   onClick={() => handleTimeChange(hour12, minute, 'PM')}
                   style={{
-                    padding: '0.2rem 0.4rem',
-                    fontSize: '0.7rem',
+                    padding: '0.2rem 0.45rem',
+                    fontSize: '0.72rem',
                     borderRadius: '4px',
                     border: 'none',
-                    background: ampm === 'PM' ? '#0284c7' : 'transparent',
-                    color: ampm === 'PM' ? '#fff' : '#64748b',
+                    background: ampm === 'PM' ? 'linear-gradient(135deg, #FF4500, #FF5A00)' : 'transparent',
+                    color: ampm === 'PM' ? '#FFFFFF' : 'var(--text-dim)',
                     fontWeight: 700,
                     cursor: 'pointer',
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   PM
@@ -346,33 +486,60 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
           </div>
 
           {/* Live Preview Display */}
-          <div style={{ background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '10px', padding: '0.65rem 0.85rem', fontSize: '0.8rem', color: '#e0f2fe' }}>
-            <span style={{ fontWeight: 600 }}>Expires on: </span>
-            <span>{selectedDate.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>
-            <span style={{ color: '#38bdf8', marginLeft: '0.5rem', fontWeight: 600 }}>
+          <div
+            style={{
+              background: 'rgba(255, 90, 0, 0.08)',
+              border: '1px solid rgba(255, 90, 0, 0.22)',
+              borderRadius: '10px',
+              padding: '0.65rem 0.85rem',
+              fontSize: '0.82rem',
+              color: '#FFFFFF',
+            }}
+          >
+            <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Expires on: </span>
+            <span style={{ fontWeight: 700 }}>
+              {selectedDate.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+            </span>
+            <span style={{ color: '#FF5A00', marginLeft: '0.45rem', fontWeight: 700 }}>
               ({getRelativeTime(selectedDate)})
             </span>
           </div>
 
           {/* Action buttons */}
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.35rem' }}>
             {value && (
               <button
                 type="button"
                 onClick={handleClear}
-                className="btn-secondary-modal"
-                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 0.85rem', fontSize: '0.8rem' }}
+                className="btn-icon-action"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.55rem 0.85rem',
+                  fontSize: '0.8rem',
+                }}
               >
-                <RotateCcw size={14} /> Clear (Permanent Link)
+                <RotateCcw size={14} />
+                <span>Permanent Link</span>
               </button>
             )}
             <button
               type="button"
               onClick={handleApply}
-              className="btn-primary-modal"
-              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', padding: '0.5rem 0.85rem', fontSize: '0.85rem' }}
+              className="btn-pill-primary"
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.4rem',
+                padding: '0.55rem 0.85rem',
+                fontSize: '0.85rem',
+              }}
             >
-              <Check size={16} /> Set Expiration
+              <Check size={16} />
+              <span>Set Expiration</span>
             </button>
           </div>
         </div>

@@ -1,40 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
 :root {
-  /* Theme matching elvinrodrigues.dev */
-  --background: #0a0a0b;
-  --surface: #131316;
-  --surface-hover: #1a1a1e;
-  --bg-input: #0f0f12;
+  /* Core Theme: Pure Obsidian + White Glow + Vibrant Ember Orange Buttons */
+  --theme-primary: #FF5A00;
+  --theme-primary-hover: #FF7020;
+  --theme-primary-gradient: linear-gradient(135deg, #FF4500 0%, #FF5A00 50%, #F59E0B 100%);
+  --theme-primary-text: #FFFFFF;
+  --theme-accent: #FF5A00;
+  --theme-orange-glow: rgba(255, 90, 0, 0.45);
   
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.18);
-  --border-focus: rgba(76, 126, 243, 0.5);
+  /* Crisp Pure White Glow */
+  --glow-white-strong: rgba(255, 255, 255, 0.22);
+  --glow-white-soft: rgba(255, 255, 255, 0.09);
+  --glow-white-subtle: rgba(255, 255, 255, 0.04);
 
-  --text-primary: #f5f5f7;
-  --text-muted: #8e8e93;
-  --text-dim: #636366;
+  /* Deep Black Surfaces */
+  --bg-page: #000000;
+  --bg-surface: #0A0A0C;
+  --bg-card: #0F0F12;
+  --bg-card-hover: #16161B;
+  --bg-input: #08080A;
 
-  --accent: #4c7ef3;
-  --accent-hover: #5f8df5;
-  --accent-subtle: rgba(76, 126, 243, 0.12);
-  --glow-color: rgba(76, 126, 243, 0.25);
+  /* High Contrast Typography */
+  --text-main: #EDEDED;
+  --text-muted: #8E8E93;
+  --text-dim: #545458;
 
-  --emerald: #00d294;
-  --amber: #fcbb00;
-  --rose: #ff4757;
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.09);
+  --border-hover: rgba(255, 255, 255, 0.22);
+  --border-white-glow: rgba(255, 255, 255, 0.35);
 
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-heading: 'Outfit', 'Inter', system-ui, sans-serif;
+  /* Spotlights */
+  --spotlight-white: rgba(255, 255, 255, 0.14);
+  --spotlight-white-halo: rgba(255, 255, 255, 0.04);
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
-  --radius-full: 9999px;
+  /* Badges */
+  --badge-orange-bg: rgba(255, 90, 0, 0.12);
+  --badge-orange-border: rgba(255, 90, 0, 0.28);
+  --badge-orange-text: #FF5A00;
 
-  --gradient-main: linear-gradient(135deg, #4c7ef3 0%, #60a5fa 50%, #818cf8 100%);
-  --gradient-text: linear-gradient(90deg, #4c7ef3 0%, #60a5fa 50%, #818cf8 100%);
-  --radial-glow: radial-gradient(circle at 50% 0%, rgba(76, 126, 243, 0.18) 0%, transparent 70%);
+  --dock-active-bg: rgba(255, 255, 255, 0.14);
+  --dock-active-border: rgba(255, 255, 255, 0.25);
 }
 
 * {
@@ -43,123 +50,94 @@
   padding: 0;
 }
 
+html {
+  scroll-behavior: smooth;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-main);
+}
+
 body {
-  font-family: var(--font-sans);
-  background-color: var(--background);
-  color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  position: relative;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Background radial glow matching elvinrodrigues.dev */
-body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100vw;
-  height: 600px;
-  background: var(--radial-glow);
-  pointer-events: none;
-  z-index: 0;
+.font-display {
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
 }
 
-#root {
-  position: relative;
-  z-index: 1;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-heading);
-}
-
-/* Scrollbar matching elvinrodrigues.dev */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: var(--background);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--border-hover);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-}
-
-/* Common Utilities */
-.glass-panel {
-  background: var(--surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
-  transition: all 0.2s ease-in-out;
-}
-
-.glow-card:hover {
-  border-color: rgba(76, 126, 243, 0.4);
-  box-shadow: 0 0 25px -5px var(--glow-color);
-  transform: translateY(-2px);
-}
-
-.text-gradient {
-  background: var(--gradient-text);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.badge {
+/* Primary Orange Button */
+.btn-pill-primary {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-  font-size: 0.725rem;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  gap: 0.4rem;
+  background: var(--theme-primary-gradient);
+  color: #FFFFFF;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+  cursor: pointer;
+  box-shadow: 0 2px 18px var(--theme-orange-glow);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  font-size: 0.85rem;
 }
 
-.badge-success {
-  background: rgba(0, 210, 148, 0.1);
-  color: var(--emerald);
-  border: 1px solid rgba(0, 210, 148, 0.25);
+.btn-pill-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 26px var(--theme-orange-glow);
+  filter: brightness(1.08);
 }
 
-.badge-warning {
-  background: rgba(252, 187, 0, 0.1);
-  color: var(--amber);
-  border: 1px solid rgba(252, 187, 0, 0.25);
+.btn-pill-primary:active {
+  transform: translateY(0);
 }
 
-.badge-error {
-  background: rgba(255, 71, 87, 0.1);
-  color: var(--rose);
-  border: 1px solid rgba(255, 71, 87, 0.25);
+/* Icon action buttons */
+.btn-icon-action {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  transition: all 0.15s ease;
+  text-decoration: none;
 }
 
-/* Animations */
+.btn-icon-action:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-hover);
+  color: var(--text-main);
+}
+
+/* Spinner */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
 @keyframes spin {
+  from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-.spinner {
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes pulseGlow {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
-}
-
-.pulse {
-  animation: pulseGlow 2s ease-in-out infinite;
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

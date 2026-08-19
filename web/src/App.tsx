@@ -1,51 +1,176 @@
-import { useState, useEffect } from 'react';
-import { Header } from './components/Header';
-import { ShortenForm } from './components/ShortenForm';
-import { ResultCard } from './components/ResultCard';
-import { StatsSection } from './components/StatsSection';
-import { RecentHistory, type HistoryItem } from './components/RecentHistory';
-import { UserURLsTable } from './components/UserURLsTable';
-import { AuthModal, type User } from './components/AuthModal';
-import { checkHealth, API_BASE_URL, type CreateURLResponse } from './api';
-import './App.css';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Navbar } from './components/Navbar.tsx';
+import { HeroSection } from './components/HeroSection.tsx';
+import { LiveDashboard } from './components/LiveDashboard.tsx';
+import { AllLinksView } from './components/AllLinksView.tsx';
+import { Footer } from './components/Footer.tsx';
+import { AuthModal } from './components/AuthModal.tsx';
+import { StatsModal } from './components/StatsModal.tsx';
+import { QRCodeModal } from './components/QRCodeModal.tsx';
+import { CursorGlow } from './components/CursorGlow.tsx';
+import { NotFound } from './components/NotFound.tsx';
+import { ToastContainer, type ToastMessage } from './components/Toast.tsx';
+import {
+  checkHealth,
+  getUserURLs,
+  API_BASE_URL,
+  type User,
+  type HistoryItem,
+  type CreateURLResponse,
+  type URLStats,
+} from './api.ts';
+import { type LinkItemData } from './components/LinkCard.tsx';
 
-export function App() {
+export const App: React.FC = () => {
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('slug-theme');
+    if (saved) return saved === 'dark';
+    return true; // Default dark
+  });
+
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
-  const [token, setToken] = useState<string>(() => localStorage.getItem('lynx_jwt_token') || '');
+  const [token, setToken] = useState<string>(() => localStorage.getItem('slug_jwt_token') || '');
   const [user, setUser] = useState<User | null>(() => {
     try {
-      const saved = localStorage.getItem('lynx_user');
+      const saved = localStorage.getItem('slug_user');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
   });
 
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [tableRefreshCount, setTableRefreshCount] = useState(0);
-
-  const [currentResult, setCurrentResult] = useState<{
-    res: CreateURLResponse;
-    originalUrl: string;
-    expiresAt?: string;
-  } | null>(null);
-
-  const [statsCode, setStatsCode] = useState<string>('');
-
-  const [history, setHistory] = useState<HistoryItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('lynx_history');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
+  // Current view state ('home' = creator + top 5 links, 'links' = dedicated /dashboard)
+  const [currentView, setCurrentView] = useState<'home' | 'links'>(() => {
+    const pathname = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    if (pathname === '/dashboard' || pathname === '/links' || hash === '#dashboard' || hash === '#links') {
+      return 'links';
     }
+    return 'home';
   });
 
+  const [userLinks, setUserLinks] = useState<URLStats[]>([]);
+  const [guestHistory, setGuestHistory] = useState<HistoryItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('slug_guest_history');
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // fallback
+    }
+    return [];
+  });
+
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [statsModalOpen, setStatsModalOpen] = useState(false);
+  const [selectedStatsCode, setSelectedStatsCode] = useState('');
+  const [qrModalOpen, setQrModalOpen] = useState(false);
+  const [qrModalData, setQrModalData] = useState<{ url: string; code: string }>({ url: '', code: '' });
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // 404 Routing state
+  const [notFoundState, setNotFoundState] = useState<{ is404: boolean; code: string; isExpired: boolean }>({
+    is404: false,
+    code: '',
+    isExpired: false,
+  });
+
+  // Toast notifications
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = useCallback((title: string, message?: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, title, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
+  // Sync browser URL & history with view state (HTML5 pushState / popstate)
+  useEffect(() => {
+    const handlePopState = () => {
+      const pathname = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      if (pathname === '/dashboard' || pathname === '/links' || hash === '#dashboard' || hash === '#links') {
+        setCurrentView('links');
+      } else {
+        setCurrentView('home');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
+  }, []);
+
+  // Fetch user links when token is available
+  useEffect(() => {
+    if (!token) {
+      setUserLinks([]);
+      return;
+    }
+    const loadLinks = async () => {
+      try {
+        const data = await getUserURLs(token);
+        setUserLinks(data || []);
+      } catch (err: any) {
+        if (err.message && (err.message.includes('expired') || err.message.includes('401'))) {
+          setToken('');
+          setUser(null);
+          localStorage.removeItem('slug_jwt_token');
+          localStorage.removeItem('slug_user');
+          setUserLinks([]);
+        }
+      }
+    };
+    loadLinks();
+  }, [token, refreshTrigger]);
+
+  // Handle path routing for short codes and health
   useEffect(() => {
     const pathname = window.location.pathname;
-    const pathCode = pathname.substring(1);
-    if (pathCode && !pathCode.includes('.') && pathCode !== 'auth' && pathCode !== 'health') {
-      window.location.href = `${API_BASE_URL}/${pathCode}`;
+    const pathCode = pathname.substring(1).trim();
+
+    // Reserved paths for client app
+    const isClientRoute = !pathCode || pathCode === 'dashboard' || pathCode === 'links' || pathCode === 'auth' || pathCode === 'stats';
+
+    if (!isClientRoute && !pathCode.includes('.')) {
+      const testLink = async () => {
+        try {
+          const res = await fetch(`${API_BASE_URL}/${encodeURIComponent(pathCode)}`, {
+            method: 'GET',
+            redirect: 'manual',
+          });
+
+          if (res.status === 404) {
+            setNotFoundState({ is404: true, code: pathCode, isExpired: false });
+            return;
+          }
+          if (res.status === 410) {
+            setNotFoundState({ is404: true, code: pathCode, isExpired: true });
+            return;
+          }
+
+          window.location.href = `${API_BASE_URL}/${pathCode}`;
+        } catch {
+          setNotFoundState({ is404: true, code: pathCode, isExpired: false });
+        }
+      };
+
+      testLink();
       return;
     }
 
@@ -63,16 +188,19 @@ export function App() {
     setUser(newUser);
 
     if (newToken) {
-      localStorage.setItem('lynx_jwt_token', newToken);
+      localStorage.setItem('slug_jwt_token', newToken);
     } else {
-      localStorage.removeItem('lynx_jwt_token');
+      localStorage.removeItem('slug_jwt_token');
+      setUserLinks([]); // Clear account links on logout
     }
 
     if (newUser) {
-      localStorage.setItem('lynx_user', JSON.stringify(newUser));
+      localStorage.setItem('slug_user', JSON.stringify(newUser));
     } else {
-      localStorage.removeItem('lynx_user');
+      localStorage.removeItem('slug_user');
     }
+
+    setRefreshTrigger((prev) => prev + 1);
   };
 
   const handleShortenSuccess = (
@@ -80,146 +208,175 @@ export function App() {
     originalUrl: string,
     expiresAt?: string
   ) => {
-    setCurrentResult({ res, originalUrl, expiresAt });
-    setTableRefreshCount((prev) => prev + 1);
+    if (token) {
+      // Logged-in: The link was created with the user token and saved to PostgreSQL
+      setRefreshTrigger((prev) => prev + 1);
+    } else {
+      // Guest: Save to guest browser history in localStorage
+      const newItem: HistoryItem = {
+        short_code: res.short_code,
+        short_url: res.short_url,
+        long_url: originalUrl,
+        created_at: new Date().toISOString(),
+        expires_at: expiresAt,
+        click_count: 0,
+        is_active: true,
+      };
 
-    const newItem: HistoryItem = {
-      short_code: res.short_code,
-      short_url: res.short_url,
-      long_url: originalUrl,
-      created_at: new Date().toISOString(),
-      expires_at: expiresAt,
-    };
-
-    setHistory((prev) => {
-      const filtered = prev.filter((item) => item.short_code !== res.short_code);
-      const updated = [newItem, ...filtered].slice(0, 20);
-      localStorage.setItem('lynx_history', JSON.stringify(updated));
-      return updated;
-    });
+      setGuestHistory((prev) => {
+        const filtered = prev.filter((item) => item.short_code !== res.short_code);
+        const updated = [newItem, ...filtered].slice(0, 50);
+        localStorage.setItem('slug_guest_history', JSON.stringify(updated));
+        return updated;
+      });
+    }
   };
 
-  const handleRemoveHistoryItem = (code: string) => {
-    setHistory((prev) => {
-      const updated = prev.filter((item) => item.short_code !== code);
-      localStorage.setItem('lynx_history', JSON.stringify(updated));
-      return updated;
-    });
-  };
-
-  const handleClearHistory = () => {
-    setHistory([]);
-    localStorage.removeItem('lynx_history');
+  const handleDeleteHistoryItem = (code: string) => {
+    if (token) {
+      setUserLinks((prev) => prev.filter((item) => item.short_code !== code));
+    } else {
+      setGuestHistory((prev) => {
+        const updated = prev.filter((item) => item.short_code !== code);
+        localStorage.setItem('slug_guest_history', JSON.stringify(updated));
+        return updated;
+      });
+    }
   };
 
   const handleViewStats = (code: string) => {
-    setStatsCode(code);
-    setTimeout(() => {
-      const statsElem = document.getElementById('stats-section');
-      if (statsElem) {
-        statsElem.scrollIntoView({ behavior: 'smooth' });
-      }
-    }, 50);
+    setSelectedStatsCode(code);
+    setStatsModalOpen(true);
   };
 
+  const handleOpenQR = (url: string, code: string) => {
+    setQrModalData({ url, code });
+    setQrModalOpen(true);
+  };
+
+  const handleSelectView = (view: 'home' | 'links') => {
+    setCurrentView(view);
+    const targetPath = view === 'links' ? '/dashboard' : '/';
+    window.history.pushState({}, '', targetPath);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // When logged in: display user's PostgreSQL account links
+  // When logged out: display strictly guest links created on this browser
+  const allDisplayLinks: LinkItemData[] = token
+    ? userLinks
+    : guestHistory.map((h) => ({
+        short_code: h.short_code,
+        long_url: h.long_url,
+        click_count: h.click_count || 0,
+        created_at: h.created_at,
+        expires_at: h.expires_at,
+        is_active: h.is_active ?? true,
+      }));
+
+  // If path is a 404 / 410 short link, render NotFound view directly
+  if (notFoundState.is404) {
+    return <NotFound pathCode={notFoundState.code} isExpired={notFoundState.isExpired} />;
+  }
+
   return (
-    <div className="app-container">
-      <Header
-        isHealthy={isHealthy}
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-page)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column' }}>
+      {/* Pure Soft White Cursor Spotlight */}
+      <CursorGlow darkMode={darkMode} />
+
+      {/* Floating Pill Top Navbar */}
+      <Navbar
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
         token={token}
         currentUser={user}
+        isHealthy={isHealthy}
+        currentView={currentView}
+        onSelectView={handleSelectView}
         onOpenAuth={() => setAuthModalOpen(true)}
       />
 
-      <main className="main-content">
-        {/* Hero Section */}
-        <section className="hero-section">
-          <h1 className="hero-title">
-            Shorten any link <br />
-            <span className="text-gradient">in one click.</span>
-          </h1>
-
-          <p className="hero-subtitle">
-            Free to use, no account required. Paste a long link to get a clean short URL instantly. Optionally create a custom alias or set an expiration date.
-          </p>
-        </section>
-
-        {/* Shorten Section */}
-        <section className="shorten-section">
-          <ShortenForm token={token} onSuccess={handleShortenSuccess} />
-        </section>
-
-        {currentResult && (
-          <section className="result-section">
-            <ResultCard
-              result={currentResult.res}
-              originalUrl={currentResult.originalUrl}
-              expiresAt={currentResult.expiresAt}
-              onViewStats={handleViewStats}
-            />
-          </section>
-        )}
-
-        {/* User's All Links Table (Dashboard) */}
-        <section className="user-urls-section">
-          <div className="section-header font-mono">
-            <span className="section-number">02 //</span>
-            <span className="section-title">MY LINK DASHBOARD (ALL URLS TABLE)</span>
-          </div>
-          <UserURLsTable
-            token={token}
-            onOpenAuth={() => setAuthModalOpen(true)}
-            onViewStats={handleViewStats}
-            refreshTrigger={tableRefreshCount}
-          />
-        </section>
-
-        {/* Recent History */}
-        <section className="history-section">
-          <RecentHistory
-            items={history}
-            token={token}
-            onViewStats={handleViewStats}
-            onRemoveItem={handleRemoveHistoryItem}
-            onClearHistory={handleClearHistory}
-          />
-        </section>
-
-        {/* Dynamic Stats Section (Only visible when Analyze is clicked) */}
-        {statsCode && (
-          <section id="stats-section" className="stats-section">
-            <div className="section-header font-mono">
-              <span className="section-number">03 //</span>
-              <span className="section-title">LINK ANALYTICS & METADATA</span>
-            </div>
-            <StatsSection
+      {/* Main Content Router */}
+      <main style={{ flex: 1 }}>
+        {currentView === 'home' ? (
+          <>
+            {/* 1. Hero with White Glow Spotlight & Orange Shorten Button */}
+            <HeroSection
               token={token}
-              initialCode={statsCode}
+              onShortenSuccess={handleShortenSuccess}
+              onViewStats={handleViewStats}
+              onOpenQR={handleOpenQR}
+              onShowToast={addToast}
               onOpenAuth={() => setAuthModalOpen(true)}
-              onClose={() => setStatsCode('')}
             />
-          </section>
+
+            {/* 2. Top 5 Recent Links Feed */}
+            <LiveDashboard
+              token={token}
+              currentUser={user}
+              allDisplayLinks={allDisplayLinks}
+              refreshTrigger={refreshTrigger}
+              onOpenAuth={() => setAuthModalOpen(true)}
+              onViewStats={handleViewStats}
+              onOpenQR={handleOpenQR}
+              onDeleteHistoryItem={handleDeleteHistoryItem}
+              onShowToast={addToast}
+              onNavigateAllLinks={() => handleSelectView('links')}
+            />
+          </>
+        ) : (
+          /* 3. Dedicated /dashboard All Links Page */
+          <AllLinksView
+            token={token}
+            currentUser={user}
+            allDisplayLinks={allDisplayLinks}
+            setUserLinks={setUserLinks}
+            onOpenAuth={() => setAuthModalOpen(true)}
+            onDeleteHistoryItem={handleDeleteHistoryItem}
+            onNavigateHome={() => handleSelectView('home')}
+            onViewStats={handleViewStats}
+            onOpenQR={handleOpenQR}
+            onShowToast={addToast}
+          />
         )}
       </main>
 
-      <footer className="footer-container">
-        <p className="tos-notice">
-          Don't shorten links to illegal, phishing, or harmful content.
-        </p>
-        <p className="footer-meta font-mono">
-          Elvin Rodrigues — Slug • Go 1.22+ • PostgreSQL 15 • Redis 7
-        </p>
-      </footer>
+      {/* Footer */}
+      <Footer darkMode={darkMode} />
 
+      {/* Toast Notification Container */}
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
+
+      {/* Auth Modal */}
       <AuthModal
         isOpen={authModalOpen}
         currentToken={token}
         currentUser={user}
         onSaveAuth={handleSaveAuth}
         onClose={() => setAuthModalOpen(false)}
+        onShowToast={addToast}
+      />
+
+      {/* Analytics Inspector Modal */}
+      <StatsModal
+        isOpen={statsModalOpen}
+        token={token}
+        initialCode={selectedStatsCode}
+        onClose={() => setStatsModalOpen(false)}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        onShowToast={addToast}
+      />
+
+      {/* QR Code Modal */}
+      <QRCodeModal
+        isOpen={qrModalOpen}
+        shortUrl={qrModalData.url}
+        shortCode={qrModalData.code}
+        onClose={() => setQrModalOpen(false)}
+        onCopy={(text) => addToast('Copied short link', text, 'success')}
       />
     </div>
   );
-}
+};
 
 export default App;
