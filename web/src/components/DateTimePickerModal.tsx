@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, X, Check, RotateCcw, Zap } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, X, Check, RotateCcw, Zap, Info } from 'lucide-react';
 
 interface DateTimePickerModalProps {
   isOpen: boolean;
   value: string; // ISO or date string, or empty
+  isGuest?: boolean;
   onChange: (val: string) => void;
   onClose: () => void;
 }
@@ -16,6 +17,7 @@ const MONTH_NAMES = [
 export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
   isOpen,
   value,
+  isGuest = false,
   onChange,
   onClose,
 }) => {
@@ -25,7 +27,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
       if (!isNaN(d.getTime())) return d;
     }
     const defaultDate = new Date();
-    defaultDate.setDate(defaultDate.getDate() + 7);
+    defaultDate.setDate(defaultDate.getDate() + (isGuest ? 30 : 7));
     defaultDate.setHours(18, 0, 0, 0);
     return defaultDate;
   });
@@ -64,6 +66,10 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Maximum allowed date for guest users (30 days from today)
+  const maxGuestDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+  maxGuestDate.setHours(23, 59, 59, 999);
+
   const prevMonth = () => {
     if (viewMonth === 0) {
       setViewMonth(11);
@@ -84,7 +90,9 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
 
   const applyPreset = (durationMs: number) => {
     const now = new Date();
-    const future = new Date(now.getTime() + durationMs);
+    // Cap at 30 days if guest
+    const targetMs = isGuest ? Math.min(durationMs, 30 * 24 * 60 * 60 * 1000) : durationMs;
+    const future = new Date(now.getTime() + targetMs);
     setSelectedDate(future);
     setViewYear(future.getFullYear());
     setViewMonth(future.getMonth());
@@ -104,6 +112,10 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
 
   const handleSelectDay = (day: number) => {
     const newDate = constructFinalDate(day);
+    if (isGuest && newDate > maxGuestDate) {
+      setSelectedDate(maxGuestDate);
+      return;
+    }
     setSelectedDate(newDate);
   };
 
@@ -128,12 +140,22 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
   };
 
   const handleApply = () => {
-    onChange(selectedDate.toISOString());
+    let dateToSave = selectedDate;
+    if (isGuest && selectedDate > maxGuestDate) {
+      dateToSave = maxGuestDate;
+    }
+    onChange(dateToSave.toISOString());
     onClose();
   };
 
   const handleClear = () => {
-    onChange('');
+    if (isGuest) {
+      // For guests, reset to the default 30-day limit
+      const default30d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      onChange(default30d.toISOString());
+    } else {
+      onChange('');
+    }
     onClose();
   };
 
@@ -234,14 +256,14 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
               }}
             >
               <Zap size={12} color="#FF5A00" />
-              <span>Quick Presets</span>
+              <span>{isGuest ? 'Quick Presets (Max 30 Days for Guests)' : 'Quick Presets'}</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
               {[
                 { label: '1 Hour', ms: 1 * 60 * 60 * 1000 },
                 { label: '24 Hours', ms: 24 * 60 * 60 * 1000 },
                 { label: '7 Days', ms: 7 * 24 * 60 * 60 * 1000 },
-                { label: '30 Days', ms: 30 * 24 * 60 * 60 * 1000 },
+                { label: isGuest ? '30 Days (Max)' : '30 Days', ms: 30 * 24 * 60 * 60 * 1000 },
               ].map((p) => (
                 <button
                   key={p.label}
@@ -250,7 +272,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                   className="btn-icon-action"
                   style={{
                     padding: '0.45rem 0.2rem',
-                    fontSize: '0.75rem',
+                    fontSize: '0.72rem',
                     fontWeight: 600,
                     borderRadius: '7px',
                     textAlign: 'center',
@@ -336,6 +358,8 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                 const dayNum = idx + 1;
                 const cellDate = new Date(viewYear, viewMonth, dayNum);
                 const isPast = cellDate < today;
+                const isExceedingGuestLimit = isGuest && cellDate > maxGuestDate;
+                const isDisabled = isPast || isExceedingGuestLimit;
                 const isSelected =
                   selectedDate.getDate() === dayNum &&
                   selectedDate.getMonth() === viewMonth &&
@@ -345,7 +369,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                   <button
                     key={`day-${dayNum}`}
                     type="button"
-                    disabled={isPast}
+                    disabled={isDisabled}
                     onClick={() => handleSelectDay(dayNum)}
                     style={{
                       padding: '0.4rem 0',
@@ -353,16 +377,17 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                       border: isSelected ? '1px solid #FF5A00' : 'none',
                       background: isSelected
                         ? 'linear-gradient(135deg, #FF4500, #FF5A00)'
-                        : isPast
+                        : isDisabled
                         ? 'transparent'
                         : 'rgba(255, 255, 255, 0.03)',
-                      color: isSelected ? '#FFFFFF' : isPast ? '#333338' : '#EDEDED',
+                      color: isSelected ? '#FFFFFF' : isDisabled ? '#333338' : '#EDEDED',
                       fontSize: '0.8rem',
                       fontWeight: isSelected ? 700 : 500,
-                      cursor: isPast ? 'not-allowed' : 'pointer',
+                      cursor: isDisabled ? 'not-allowed' : 'pointer',
                       transition: 'all 0.15s ease',
                       boxShadow: isSelected ? '0 0 12px rgba(255, 90, 0, 0.4)' : 'none',
                     }}
+                    title={isExceedingGuestLimit ? 'Guest links max duration is 30 days. Sign in for longer dates.' : ''}
                   >
                     {dayNum}
                   </button>
@@ -505,9 +530,25 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
             </span>
           </div>
 
+          {isGuest && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                fontSize: '0.75rem',
+                color: 'var(--text-dim)',
+                padding: '0.25rem 0.4rem',
+              }}
+            >
+              <Info size={13} color="#FF5A00" style={{ flexShrink: 0 }} />
+              <span>Guest links expire in max 30 days. Sign in for permanent URLs.</span>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.35rem' }}>
-            {value && (
+            {!isGuest && value && (
               <button
                 type="button"
                 onClick={handleClear}

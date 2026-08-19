@@ -84,7 +84,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           setLoading(false);
           return;
         }
+        // If guest, cap at 30 days
+        if (!token) {
+          const maxGuestMs = Date.now() + 30 * 24 * 60 * 60 * 1000;
+          if (parsedDate.getTime() > maxGuestMs) {
+            parsedDate.setTime(maxGuestMs);
+          }
+        }
         expiryISO = parsedDate.toISOString();
+      } else if (!token) {
+        // Unauthenticated guest without custom expiration defaults to 30 days (1 month)
+        expiryISO = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       }
 
       const payload: { long_url: string; custom_code?: string; expires_at?: string } = {
@@ -637,6 +647,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       <DateTimePickerModal
         isOpen={dateModalOpen}
         value={expiresAt}
+        isGuest={!token}
         onChange={(val) => setExpiresAt(val)}
         onClose={() => setDateModalOpen(false)}
       />

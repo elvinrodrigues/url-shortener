@@ -29,6 +29,14 @@ func (s *urlService) Shorten(ctx context.Context, req domain.CreateURLRequest) (
 		return nil, err
 	}
 
+	// For guest users (unauthenticated), enforce a maximum lifetime limit of 1 month (30 days)
+	if req.UserID == nil {
+		maxGuestExpiry := time.Now().AddDate(0, 1, 0)
+		if req.ExpiresAt == nil || req.ExpiresAt.After(maxGuestExpiry) {
+			req.ExpiresAt = &maxGuestExpiry
+		}
+	}
+
 	if req.CustomCode != "" {
 		if err := validateCustomCode(req.CustomCode); err != nil {
 			return nil, err
