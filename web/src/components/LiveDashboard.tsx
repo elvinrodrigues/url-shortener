@@ -62,16 +62,17 @@ export const LiveDashboard: React.FC<LiveDashboardProps> = ({
   const top5Links = filteredLinks.slice(0, 5);
 
   return (
-    <section id="dashboard" style={{ padding: '0.5rem 1.25rem 5rem', maxWidth: '760px', margin: '0 auto' }}>
+    <section id="dashboard" className="dashboard-section" style={{ padding: '0.5rem 1.25rem 3.5rem', maxWidth: '760px', margin: '0 auto' }}>
       {/* Header Bar */}
       <div
+        className="dashboard-header-bar"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '0.85rem',
-          marginBottom: '1rem',
+          gap: '0.75rem',
+          marginBottom: '0.85rem',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
@@ -131,22 +132,23 @@ export const LiveDashboard: React.FC<LiveDashboardProps> = ({
         </div>
 
         {/* Search Input Pill */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        <div className="dashboard-search-container" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
           <Search size={12} style={{ position: 'absolute', left: '10px', color: 'var(--text-dim)' }} />
           <input
             type="text"
             placeholder="Filter links..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            className="dashboard-search-input"
             style={{
               backgroundColor: 'var(--bg-input)',
               border: '1px solid var(--border-subtle)',
               borderRadius: '9999px',
-              padding: '4px 12px 4px 28px',
-              fontSize: '11px',
+              padding: '5px 12px 5px 28px',
+              fontSize: '11.5px',
               color: 'var(--text-main)',
               outline: 'none',
-              width: '150px',
+              width: '160px',
               transition: 'all 0.2s ease',
             }}
           />
@@ -157,8 +159,9 @@ export const LiveDashboard: React.FC<LiveDashboardProps> = ({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
         {top5Links.length === 0 ? (
           <div
+            className="dashboard-empty-card"
             style={{
-              padding: '2.5rem 1.5rem',
+              padding: '1.75rem 1.25rem',
               borderRadius: '12px',
               textAlign: 'center',
               backgroundColor: 'var(--bg-card)',

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, Key, LogOut, User as UserIcon } from 'lucide-react';
+import { X, Key, LogOut, User as UserIcon, Sparkles } from 'lucide-react';
 import { API_BASE_URL, type User } from '../api.ts';
 
 interface AuthModalProps {
@@ -15,6 +15,16 @@ const GOOGLE_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
   '522031681947-n509q6tl9f6k3ottib6h9ojir8lhh7jc.apps.googleusercontent.com';
 
+const DEV_TOKEN =
+  'eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJ1c2VyX2lkIjogMSwgImVtYWlsIjogImVsdmluQGV4YW1wbGUuY29tIiwgIm5hbWUiOiAiRWx2aW4gUm9kcmlndWVzIiwgImF2YXRhcl91cmwiOiAiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvZGVmYXVsdC11c2VyIiwgImV4cCI6IDE3ODk3MTExNjYsICJpYXQiOiAxNzg3MTE5MTY2fQ.Wxw3q5Brojo2W8W3iv7HKc91eATcVpx_Hu2vr1t1aEM';
+
+const DEV_USER: User = {
+  id: 1,
+  email: 'elvin@example.com',
+  name: 'Elvin Rodrigues',
+  avatar_url: 'https://lh3.googleusercontent.com/a/default-user',
+};
+
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   currentToken: _currentToken,
@@ -24,6 +34,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onShowToast,
 }) => {
   const [error, setError] = useState('');
+
+  const isLocalhost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname.startsWith('192.168.') ||
+      window.location.hostname.startsWith('10.') ||
+      window.location.hostname.startsWith('172.'));
 
   useEffect(() => {
     if (!isOpen || currentUser) return;
@@ -74,6 +92,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setError(err.message || 'Authentication error');
       onShowToast('Auth failed', err.message, 'error');
     }
+  };
+
+  const handleDevLogin = () => {
+    onSaveAuth(DEV_TOKEN, DEV_USER);
+    onShowToast('Signed in as Dev User', 'Welcome back, Elvin Rodrigues!', 'success');
+    onClose();
   };
 
   const handleSignOut = () => {
@@ -213,6 +237,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <div id="google-signin-btn-slug"></div>
             </div>
 
+            {/* Localhost 1-Click Dev Sign In */}
+            {isLocalhost && (
+              <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '0.65rem', textAlign: 'center' }}>
+                  — Local Dev Quick Sign-In —
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDevLogin}
+                  className="btn-icon-action"
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    justifyContent: 'center',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    color: '#FF5A00',
+                    borderColor: 'rgba(255, 90, 0, 0.35)',
+                    backgroundColor: 'rgba(255, 90, 0, 0.08)',
+                  }}
+                >
+                  <Sparkles size={14} />
+                  <span>Sign In as Elvin (Local Dev Account)</span>
+                </button>
+              </div>
+            )}
+
             {error && (
               <div
                 style={{
@@ -222,7 +276,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   borderRadius: '8px',
                   fontSize: '0.82rem',
                   textAlign: 'center',
-                  marginBottom: '1rem',
+                  marginTop: '1rem',
                 }}
               >
                 {error}

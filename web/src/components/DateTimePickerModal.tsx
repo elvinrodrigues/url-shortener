@@ -3,7 +3,7 @@ import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, X, Check, R
 
 interface DateTimePickerModalProps {
   isOpen: boolean;
-  value: string; // ISO or date string, or empty
+  value: string; // ISO string, or empty
   isGuest?: boolean;
   onChange: (val: string) => void;
   onClose: () => void;
@@ -55,8 +55,19 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
         setMinute(d.getMinutes());
         setAmPm(d.getHours() >= 12 ? 'PM' : 'AM');
       }
+    } else {
+      const defaultDate = new Date();
+      defaultDate.setDate(defaultDate.getDate() + (isGuest ? 30 : 7));
+      defaultDate.setHours(18, 0, 0, 0);
+      setSelectedDate(defaultDate);
+      setViewYear(defaultDate.getFullYear());
+      setViewMonth(defaultDate.getMonth());
+      const h = defaultDate.getHours() % 12;
+      setHour12(h === 0 ? 12 : h);
+      setMinute(defaultDate.getMinutes());
+      setAmPm(defaultDate.getHours() >= 12 ? 'PM' : 'AM');
     }
-  }, [value, isOpen]);
+  }, [value, isOpen, isGuest]);
 
   if (!isOpen) return null;
 
@@ -66,11 +77,18 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Maximum allowed date for guest users (30 days from today)
+  // Maximum allowed date for guest users (strictly 30 days from today)
   const maxGuestDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
   maxGuestDate.setHours(23, 59, 59, 999);
 
+  const isCurrentMonth = viewYear === today.getFullYear() && viewMonth === today.getMonth();
+  const isMaxGuestMonth = isGuest && (
+    viewYear > maxGuestDate.getFullYear() ||
+    (viewYear === maxGuestDate.getFullYear() && viewMonth >= maxGuestDate.getMonth())
+  );
+
   const prevMonth = () => {
+    if (isCurrentMonth) return;
     if (viewMonth === 0) {
       setViewMonth(11);
       setViewYear(viewYear - 1);
@@ -80,6 +98,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
   };
 
   const nextMonth = () => {
+    if (isMaxGuestMonth) return;
     if (viewMonth === 11) {
       setViewMonth(0);
       setViewYear(viewYear + 1);
@@ -90,7 +109,6 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
 
   const applyPreset = (durationMs: number) => {
     const now = new Date();
-    // Cap at 30 days if guest
     const targetMs = isGuest ? Math.min(durationMs, 30 * 24 * 60 * 60 * 1000) : durationMs;
     const future = new Date(now.getTime() + targetMs);
     setSelectedDate(future);
@@ -106,8 +124,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
   const constructFinalDate = (dayNumber: number): Date => {
     let targetHour24 = hour12 % 12;
     if (ampm === 'PM') targetHour24 += 12;
-    const finalDate = new Date(viewYear, viewMonth, dayNumber, targetHour24, minute, 0, 0);
-    return finalDate;
+    return new Date(viewYear, viewMonth, dayNumber, targetHour24, minute, 0, 0);
   };
 
   const handleSelectDay = (day: number) => {
@@ -136,7 +153,12 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
       0,
       0
     );
-    setSelectedDate(newDate);
+
+    if (isGuest && newDate > maxGuestDate) {
+      setSelectedDate(maxGuestDate);
+    } else {
+      setSelectedDate(newDate);
+    }
   };
 
   const handleApply = () => {
@@ -150,16 +172,16 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
 
   const handleClear = () => {
     if (isGuest) {
-      // For guests, reset to the default 30-day limit
+      // For guests, reset to default 30 days
       const default30d = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       onChange(default30d.toISOString());
     } else {
+      // For logged in users, clear to null (permanent link)
       onChange('');
     }
     onClose();
   };
 
-  // Format relative time helper
   const getRelativeTime = (d: Date): string => {
     const diffMs = d.getTime() - new Date().getTime();
     if (diffMs <= 0) return 'Expired in past';
@@ -168,6 +190,20 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
     const days = Math.round(diffMs / (1000 * 60 * 60 * 24));
     return `in ${days} day${days === 1 ? '' : 's'}`;
   };
+
+  const presets = isGuest
+    ? [
+        { label: '1 Hour', ms: 1 * 60 * 60 * 1000 },
+        { label: '24 Hours', ms: 24 * 60 * 60 * 1000 },
+        { label: '7 Days', ms: 7 * 24 * 60 * 60 * 1000 },
+        { label: '30 Days (Max)', ms: 30 * 24 * 60 * 60 * 1000 },
+      ]
+    : [
+        { label: '24 Hours', ms: 24 * 60 * 60 * 1000 },
+        { label: '7 Days', ms: 7 * 24 * 60 * 60 * 1000 },
+        { label: '30 Days', ms: 30 * 24 * 60 * 60 * 1000 },
+        { label: '1 Year', ms: 365 * 24 * 60 * 60 * 1000 },
+      ];
 
   return (
     <div
@@ -259,12 +295,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
               <span>{isGuest ? 'Quick Presets (Max 30 Days for Guests)' : 'Quick Presets'}</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
-              {[
-                { label: '1 Hour', ms: 1 * 60 * 60 * 1000 },
-                { label: '24 Hours', ms: 24 * 60 * 60 * 1000 },
-                { label: '7 Days', ms: 7 * 24 * 60 * 60 * 1000 },
-                { label: isGuest ? '30 Days (Max)' : '30 Days', ms: 30 * 24 * 60 * 60 * 1000 },
-              ].map((p) => (
+              {presets.map((p) => (
                 <button
                   key={p.label}
                   type="button"
@@ -297,13 +328,16 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
               <button
                 type="button"
                 onClick={prevMonth}
+                disabled={isCurrentMonth}
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
+                  color: isCurrentMonth ? 'var(--text-dim)' : 'var(--text-muted)',
+                  cursor: isCurrentMonth ? 'not-allowed' : 'pointer',
                   padding: '3px',
+                  opacity: isCurrentMonth ? 0.35 : 1,
                 }}
+                title={isCurrentMonth ? 'Cannot select past months' : 'Previous Month'}
               >
                 <ChevronLeft size={16} />
               </button>
@@ -313,13 +347,16 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
               <button
                 type="button"
                 onClick={nextMonth}
+                disabled={isMaxGuestMonth}
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
+                  color: isMaxGuestMonth ? 'var(--text-dim)' : 'var(--text-muted)',
+                  cursor: isMaxGuestMonth ? 'not-allowed' : 'pointer',
                   padding: '3px',
+                  opacity: isMaxGuestMonth ? 0.35 : 1,
                 }}
+                title={isMaxGuestMonth ? 'Guest links capped at 30 days. Sign in for longer dates.' : 'Next Month'}
               >
                 <ChevronRight size={16} />
               </button>
@@ -357,6 +394,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
               {Array.from({ length: daysInMonth }).map((_, idx) => {
                 const dayNum = idx + 1;
                 const cellDate = new Date(viewYear, viewMonth, dayNum);
+                cellDate.setHours(0, 0, 0, 0);
                 const isPast = cellDate < today;
                 const isExceedingGuestLimit = isGuest && cellDate > maxGuestDate;
                 const isDisabled = isPast || isExceedingGuestLimit;
@@ -385,9 +423,9 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                       fontWeight: isSelected ? 700 : 500,
                       cursor: isDisabled ? 'not-allowed' : 'pointer',
                       transition: 'all 0.15s ease',
-                      opacity: isDisabled ? 0.35 : 1,
+                      opacity: isDisabled ? 0.3 : 1,
                     }}
-                    title={isExceedingGuestLimit ? 'Guest links max duration is 30 days. Sign in for longer dates.' : ''}
+                    title={isExceedingGuestLimit ? 'Guest links max duration is 30 days. Sign in to select dates beyond 30 days.' : ''}
                   >
                     {dayNum}
                   </button>
@@ -542,13 +580,13 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
               }}
             >
               <Info size={13} color="#FF5A00" style={{ flexShrink: 0 }} />
-              <span>Guest links expire in max 30 days. Sign in for permanent URLs.</span>
+              <span>Guest links expire in maximum 30 days. Sign in for permanent URLs.</span>
             </div>
           )}
 
           {/* Action buttons */}
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.35rem' }}>
-            {!isGuest && value && (
+            {!isGuest && (
               <button
                 type="button"
                 onClick={handleClear}

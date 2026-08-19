@@ -21,19 +21,20 @@ export const Favicon: React.FC<FaviconProps> = ({ url, size = 20 }) => {
     return (
       <div
         style={{
-          width: `${size + 12}px`,
-          height: `${size + 12}px`,
+          width: `${size + 14}px`,
+          height: `${size + 14}px`,
           borderRadius: '50%',
-          backgroundColor: 'var(--bg-hover)',
+          backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-subtle)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--text-muted)',
           flexShrink: 0,
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
         }}
       >
-        <Globe size={size - 4} />
+        <Globe size={size - 2} />
       </div>
     );
   }
@@ -43,16 +44,17 @@ export const Favicon: React.FC<FaviconProps> = ({ url, size = 20 }) => {
   return (
     <div
       style={{
-        width: `${size + 12}px`,
-        height: `${size + 12}px`,
+        width: `${size + 14}px`,
+        height: `${size + 14}px`,
         borderRadius: '50%',
-        backgroundColor: 'var(--bg-hover)',
+        backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border-subtle)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
         flexShrink: 0,
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
       }}
     >
       <img

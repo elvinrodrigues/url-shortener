@@ -60,6 +60,7 @@ export const LinkCard: React.FC<LinkCardProps> = ({
 
   return (
     <div
+      className="link-card-container"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
@@ -77,10 +78,19 @@ export const LinkCard: React.FC<LinkCardProps> = ({
       }}
     >
       {/* Left: Domain Favicon Avatar & Short Code Stack */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: '220px', flex: '1 1 260px' }}>
+      <div
+        className="link-card-left"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.85rem',
+          minWidth: 0,
+          flex: '1 1 240px',
+        }}
+      >
         <Favicon url={link.long_url} size={16} />
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden', minWidth: 0, flex: 1 }}>
           {/* Top Row: Short Code + inline copy button */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span
@@ -124,7 +134,9 @@ export const LinkCard: React.FC<LinkCardProps> = ({
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              maxWidth: '340px',
+              width: '100%',
+              maxWidth: '380px',
+              display: 'block',
             }}
             title={link.long_url}
           >
@@ -134,42 +146,53 @@ export const LinkCard: React.FC<LinkCardProps> = ({
       </div>
 
       {/* Right: Orange Click Badge, Time ago & 5 Action Buttons */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-        {/* Orange Click Count Pill */}
-        <div
-          className="font-mono"
-          style={{
-            backgroundColor: 'rgba(255, 90, 0, 0.08)',
-            border: '1px solid rgba(255, 90, 0, 0.35)',
-            color: '#FF5A00',
-            padding: '3px 10px',
-            borderRadius: '9999px',
-            fontSize: '11px',
-            fontWeight: 700,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <span>{link.click_count || 0}</span>
-          <span>clicks</span>
+      <div
+        className="link-card-right"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '0.65rem',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          {/* Orange Click Count Pill */}
+          <div
+            className="font-mono"
+            style={{
+              backgroundColor: 'rgba(255, 90, 0, 0.08)',
+              border: '1px solid rgba(255, 90, 0, 0.35)',
+              color: '#FF5A00',
+              padding: '3px 9px',
+              borderRadius: '9999px',
+              fontSize: '11px',
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span>{link.click_count || 0}</span>
+            <span>clicks</span>
+          </div>
+
+          {/* Time Ago */}
+          <span
+            className="font-mono"
+            style={{
+              fontSize: '11px',
+              color: 'var(--text-dim)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {formatTimeAgo(link.created_at)}
+          </span>
         </div>
 
-        {/* Time Ago */}
-        <span
-          className="font-mono"
-          style={{
-            fontSize: '11px',
-            color: 'var(--text-dim)',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {formatTimeAgo(link.created_at)}
-        </span>
-
         {/* 5 Distinct Action Button Icons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div className="link-card-actions" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           {/* 1. Copy Link */}
           <button
             type="button"

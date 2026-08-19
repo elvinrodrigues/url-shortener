@@ -105,7 +105,7 @@ export const App: React.FC = () => {
   const showToast = useCallback(
     (title: string, message?: string, type: 'success' | 'error' | 'info' = 'info') => {
       const id = Date.now().toString() + Math.random().toString(36).substring(2, 6);
-      setToasts((prev) => [...prev, { id, title, message, type }]);
+      setToasts((prev) => [...prev.slice(-2), { id, title, message, type }]);
     },
     [],
   );

@@ -7,28 +7,61 @@ interface CursorGlowProps {
 export const CursorGlow: React.FC<CursorGlowProps> = ({ darkMode }) => {
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: -1000, y: -1000 });
   const [visible, setVisible] = useState(false);
+  const [isSupported, setIsSupported] = useState(false);
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePos({ x: e.clientX, y: e.clientY });
-      if (!visible) setVisible(true);
+    // Only enable glow on devices with a fine pointer (mouse/trackpad) and hover capability
+    const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
+
+    const handleMediaChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      setIsSupported(e.matches);
+      if (!e.matches) {
+        setVisible(false);
+      }
     };
 
-    const handleMouseLeave = () => {
+    handleMediaChange(mediaQuery);
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleMediaChange);
+    } else {
+      mediaQuery.addListener(handleMediaChange);
+    }
+
+    const handlePointerMove = (e: PointerEvent) => {
+      // Explicitly ignore touch events
+      if (e.pointerType === 'touch') return;
+      if (!mediaQuery.matches) return;
+
+      setMousePos({ x: e.clientX, y: e.clientY });
+      setVisible(true);
+    };
+
+    const handlePointerLeave = () => {
       setVisible(false);
     };
 
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    document.addEventListener('mouseleave', handleMouseLeave);
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    document.addEventListener('mouseleave', handlePointerLeave);
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseleave', handleMouseLeave);
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener('change', handleMediaChange);
+      } else {
+        mediaQuery.removeListener(handleMediaChange);
+      }
+      window.removeEventListener('pointermove', handlePointerMove);
+      document.removeEventListener('mouseleave', handlePointerLeave);
     };
-  }, [visible]);
+  }, []);
+
+  if (!isSupported) {
+    return null;
+  }
 
   return (
     <div
+      className="cursor-glow"
       aria-hidden="true"
       style={{
         position: 'fixed',
@@ -44,3 +77,4 @@ export const CursorGlow: React.FC<CursorGlowProps> = ({ darkMode }) => {
     />
   );
 };
+

@@ -290,19 +290,20 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
   }).length;
 
   return (
-    <div style={{ maxWidth: '880px', margin: '0 auto', padding: '6.5rem 1.25rem 5rem' }}>
+    <div className="dashboard-page-container" style={{ maxWidth: '880px', margin: '0 auto', padding: '6.5rem 1.25rem 5rem' }}>
       {/* Header bar */}
       <div
+        className="dashboard-main-header"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '1rem',
-          marginBottom: '1.75rem',
+          marginBottom: '1.5rem',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={onNavigateHome}
@@ -310,8 +311,8 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '0.45rem 0.85rem',
+              gap: '5px',
+              padding: '0.45rem 0.75rem',
               fontSize: '12px',
               fontWeight: 600,
             }}
@@ -321,15 +322,16 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
           </button>
 
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <h1
-                className="font-display"
+                className="font-display dashboard-title"
                 style={{
-                  fontSize: '1.6rem',
+                  fontSize: 'clamp(1.25rem, 4.5vw, 1.65rem)',
                   fontWeight: 800,
                   color: 'var(--text-title)',
                   margin: 0,
                   letterSpacing: '-0.02em',
+                  lineHeight: 1.25,
                 }}
               >
                 {currentUser ? `${currentUser.name.split(' ')[0]}'s Link Dashboard` : 'Account Dashboard'}
@@ -361,7 +363,7 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
         </div>
 
         {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={handleRefresh}
@@ -378,10 +380,10 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
             onClick={handleExportCSV}
             className="btn-icon-action"
             style={{
-              padding: '0.5rem 0.85rem',
+              padding: '0.5rem 0.75rem',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '5px',
               fontSize: '12px',
               fontWeight: 600,
             }}
@@ -395,11 +397,11 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
             onClick={onNavigateHome}
             className="btn-pill-primary"
             style={{
-              padding: '0.5rem 1.15rem',
+              padding: '0.5rem 1rem',
               fontSize: '12px',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
+              gap: '5px',
             }}
           >
             <Plus size={14} />
@@ -408,16 +410,18 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
         </div>
       </div>
 
-      {/* Summary KPI Cards (Orange Highlights) */}
+      {/* Summary KPI Cards (Responsive Grid) */}
       <div
+        className="kpi-grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gridTemplateColumns: 'repeat(3, 1fr)',
           gap: '0.85rem',
-          marginBottom: '1.75rem',
+          marginBottom: '1.5rem',
         }}
       >
         <div
+          className="kpi-card"
           style={{
             backgroundColor: 'var(--bg-card)',
             border: '1px solid var(--border-subtle)',
@@ -429,15 +433,16 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
           <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase' }}>
             Total Links
           </span>
-          <div className="font-display" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-title)', marginTop: '2px' }}>
+          <div className="font-display kpi-num" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-title)', marginTop: '2px' }}>
             {allDisplayLinks.length}
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+          <div className="kpi-sub" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
             Cloud Account Records
           </div>
         </div>
 
         <div
+          className="kpi-card"
           style={{
             backgroundColor: 'var(--bg-card)',
             border: '1px solid var(--border-subtle)',
@@ -449,15 +454,16 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
           <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase' }}>
             Total Clicks
           </span>
-          <div className="font-display" style={{ fontSize: '2rem', fontWeight: 800, color: '#FF5A00', marginTop: '2px' }}>
+          <div className="font-display kpi-num" style={{ fontSize: '2rem', fontWeight: 800, color: '#FF5A00', marginTop: '2px' }}>
             {totalClicks.toLocaleString()}
           </div>
-          <div style={{ fontSize: '11px', color: '#22C55E', fontWeight: 600, marginTop: '2px' }}>
-            ● Live Redirection Telemetry
+          <div className="kpi-sub" style={{ fontSize: '11px', color: '#22C55E', fontWeight: 600, marginTop: '2px' }}>
+            ● Live Telemetry
           </div>
         </div>
 
         <div
+          className="kpi-card"
           style={{
             backgroundColor: 'var(--bg-card)',
             border: '1px solid var(--border-subtle)',
@@ -469,11 +475,11 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
           <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase' }}>
             Active Links
           </span>
-          <div className="font-display" style={{ fontSize: '2rem', fontWeight: 800, color: '#22C55E', marginTop: '2px' }}>
+          <div className="font-display kpi-num" style={{ fontSize: '2rem', fontWeight: 800, color: '#22C55E', marginTop: '2px' }}>
             {activeCount}
           </div>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-            Available for instant redirect
+          <div className="kpi-sub" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+            Available for redirect
           </div>
         </div>
       </div>

@@ -8,15 +8,16 @@ interface FooterProps {
 export const Footer: React.FC<FooterProps> = () => {
   return (
     <footer
+      className="main-footer"
       style={{
         maxWidth: '820px',
         margin: '0 auto',
-        padding: '2.5rem 1.25rem 2rem',
+        padding: '2rem 1.25rem calc(1.75rem + env(safe-area-inset-bottom, 0px))',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: '1rem',
+        gap: '0.85rem',
         fontSize: '11.5px',
         color: 'var(--text-dim)',
       }}
@@ -28,7 +29,7 @@ export const Footer: React.FC<FooterProps> = () => {
         </span>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+      <div className="footer-links" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
         <span className="font-mono" style={{ fontSize: '11px' }}>
           Go 1.26 • PostgreSQL • Redis
         </span>

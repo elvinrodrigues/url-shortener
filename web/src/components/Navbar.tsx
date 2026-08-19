@@ -48,7 +48,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     };
 
     updateIndicator();
-    // Re-measure on window resize
     window.addEventListener('resize', updateIndicator);
     return () => window.removeEventListener('resize', updateIndicator);
   }, [currentView, token]);
@@ -79,346 +78,353 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const handleDashboardNav = () => {
-    if (token) {
-      onSelectView('links');
-    } else {
-      onOpenAuth();
-    }
+    onSelectView('links');
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 50,
-        transition: 'padding 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-        paddingTop: scrolled ? '0.75rem' : '1.25rem',
-        paddingLeft: '1.25rem',
-        paddingRight: '1.25rem',
-        pointerEvents: 'none',
-        display: 'flex',
-        justifyContent: 'center',
-      }}
-    >
-      <header
+    <>
+      {/* Mobile Dark Glass Backdrop Overlay */}
+      {mobileMenuOpen && (
+        <div
+          onClick={() => setMobileMenuOpen(false)}
+          className="mobile-menu-backdrop"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.48)',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
+            zIndex: 45,
+            pointerEvents: 'auto',
+            animation: 'fadeIn 0.18s ease forwards',
+          }}
+        />
+      )}
+
+      <div
+        className="navbar-wrapper"
         style={{
-          pointerEvents: 'auto',
-          margin: '0 auto',
-          maxWidth: scrolled ? '720px' : '900px',
-          width: '100%',
-          borderRadius: '9999px',
-          backgroundColor: scrolled ? 'var(--bg-dock-scrolled)' : 'var(--bg-dock)',
-          border: '1px solid var(--border-subtle)',
-          boxShadow: 'var(--dock-shadow)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-          transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 50,
+          transition: 'padding 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+          paddingTop: `calc(${scrolled ? '0.65rem' : '1.15rem'} + env(safe-area-inset-top, 0px))`,
+          paddingLeft: 'max(0.75rem, env(safe-area-inset-left, 0px))',
+          paddingRight: 'max(0.75rem, env(safe-area-inset-right, 0px))',
+          pointerEvents: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
         }}
       >
-        <div
+        {/* Main Navbar Pill */}
+        <header
+          className="navbar-dock"
           style={{
-            padding: scrolled ? '0 1rem 0 0.85rem' : '0 1.25rem 0 1rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            height: scrolled ? '52px' : '58px',
-            transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+            pointerEvents: 'auto',
+            margin: '0 auto',
+            maxWidth: scrolled ? '720px' : '900px',
+            width: '100%',
+            borderRadius: '9999px',
+            backgroundColor: scrolled ? 'var(--bg-dock-scrolled)' : 'var(--bg-dock)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: 'var(--dock-shadow)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            transition: 'max-width 0.35s ease, background-color 0.3s ease',
+            overflow: 'hidden',
           }}
         >
-          {/* Brand Logo & API Status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <button
-              type="button"
-              onClick={() => onSelectView('home')}
+          <div
+            style={{
+              padding: scrolled ? '0 1rem 0 0.85rem' : '0 1.25rem 0 1rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              height: scrolled ? '52px' : '58px',
+              transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
+            {/* Brand Logo & API Status */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <button
+                type="button"
+                onClick={() => onSelectView('home')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  textDecoration: 'none',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                {/* Brand Icon Box */}
+                <div
+                  style={{
+                    width: scrolled ? '26px' : '28px',
+                    height: scrolled ? '26px' : '28px',
+                    borderRadius: '7px',
+                    backgroundColor: 'rgba(255, 90, 0, 0.12)',
+                    border: '1px solid rgba(255, 90, 0, 0.25)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#FF5A00',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 0 10px rgba(255, 90, 0, 0.2)',
+                  }}
+                >
+                  <Link2 size={scrolled ? 14 : 15} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                  <span
+                    className="font-display"
+                    style={{
+                      fontSize: scrolled ? '17px' : '18px',
+                      fontWeight: 800,
+                      color: 'var(--text-title)',
+                      letterSpacing: '-0.02em',
+                      transition: 'font-size 0.3s ease',
+                    }}
+                  >
+                    Slug
+                  </span>
+                  <span style={{ color: '#FF5A00', fontWeight: 900, fontSize: scrolled ? '17px' : '18px' }}>.</span>
+                </div>
+              </button>
+
+              {/* Backend Health Badge */}
+              {isHealthy !== null && (
+                <span
+                  style={{
+                    fontSize: '9.5px',
+                    fontWeight: 700,
+                    padding: '2px 7px',
+                    borderRadius: '9999px',
+                    backgroundColor: isHealthy ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                    color: isHealthy ? '#22C55E' : '#EF4444',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    border: `1px solid ${isHealthy ? 'rgba(34, 197, 94, 0.28)' : 'rgba(239, 68, 68, 0.28)'}`,
+                  }}
+                  title={isHealthy ? 'Go Backend Online' : 'Backend Offline'}
+                >
+                  <span
+                    style={{
+                      width: '4.5px',
+                      height: '4.5px',
+                      borderRadius: '50%',
+                      backgroundColor: isHealthy ? '#22C55E' : '#EF4444',
+                      boxShadow: isHealthy ? '0 0 6px #22C55E' : 'none',
+                    }}
+                  />
+                  <span className="font-mono">{isHealthy ? 'API ONLINE' : 'OFFLINE'}</span>
+                </span>
+              )}
+            </div>
+
+            {/* Seamless Center Dock Segmented Switcher */}
+            <nav
               style={{
-                display: 'flex',
+                display: 'none',
                 alignItems: 'center',
-                gap: '0.45rem',
-                textDecoration: 'none',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                padding: 0,
+                position: 'relative',
+                backgroundColor: 'var(--bg-input)',
+                borderRadius: '9999px',
+                padding: '3px',
+                border: '1px solid var(--border-subtle)',
+                overflow: 'hidden',
               }}
+              className="desktop-nav"
             >
-              {/* Brand Icon Box */}
+              {/* Animated Floating Pill Background */}
               <div
                 style={{
-                  width: scrolled ? '26px' : '28px',
-                  height: scrolled ? '26px' : '28px',
-                  borderRadius: '7px',
-                  backgroundColor: 'rgba(255, 90, 0, 0.12)',
-                  border: '1px solid rgba(255, 90, 0, 0.25)',
+                  position: 'absolute',
+                  top: '3px',
+                  bottom: '3px',
+                  left: 0,
+                  transform: `translateX(${indicatorStyle.left}px)`,
+                  width: `${indicatorStyle.width}px`,
+                  backgroundColor: 'var(--dock-active-bg)',
+                  borderRadius: '9999px',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08), 0 0 12px rgba(255, 90, 0, 0.06)',
+                  border: '1px solid var(--dock-active-border)',
+                  transition: 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), width 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease',
+                  opacity: indicatorStyle.opacity,
+                  pointerEvents: 'none',
+                  zIndex: 0,
+                }}
+              />
+
+              {/* Shorten tab */}
+              <button
+                ref={shortenTabRef}
+                type="button"
+                onClick={() => onSelectView('home')}
+                style={{
+                  position: 'relative',
+                  zIndex: 1,
+                  background: 'transparent',
+                  border: 'none',
+                  color: currentView === 'home' ? 'var(--text-title)' : 'var(--text-muted)',
+                  fontWeight: currentView === 'home' ? 700 : 500,
+                  fontSize: '12.5px',
+                  padding: '0.35rem 0.95rem',
+                  borderRadius: '9999px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  transition: 'color 0.2s ease',
+                }}
+              >
+                <Link2 size={13} color={currentView === 'home' ? '#FF5A00' : 'currentColor'} />
+                <span>Shorten</span>
+              </button>
+
+              {/* Dashboard tab */}
+              <button
+                ref={dashboardTabRef}
+                type="button"
+                onClick={handleDashboardNav}
+                style={{
+                  position: 'relative',
+                  zIndex: 1,
+                  background: 'transparent',
+                  border: 'none',
+                  color: currentView === 'links' ? 'var(--text-title)' : 'var(--text-muted)',
+                  fontWeight: currentView === 'links' ? 700 : 500,
+                  fontSize: '12.5px',
+                  padding: '0.35rem 0.95rem',
+                  borderRadius: '9999px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  transition: 'color 0.2s ease',
+                }}
+              >
+                {token ? (
+                  <LayoutDashboard size={13} color={currentView === 'links' ? '#FF5A00' : 'currentColor'} />
+                ) : (
+                  <Lock size={12} color={currentView === 'links' ? '#FF5A00' : 'var(--text-dim)'} />
+                )}
+                <span>Dashboard</span>
+              </button>
+            </nav>
+
+            {/* Right Action Icons & Auth */}
+            <div style={{ display: 'none', alignItems: 'center', gap: '0.65rem' }} className="desktop-actions">
+              {/* Theme toggle */}
+              <button
+                onClick={toggleTheme}
+                aria-label="Toggle Theme"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '6px',
+                  color: 'var(--text-muted)',
+                  borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#FF5A00',
-                  transition: 'all 0.3s ease',
-                  boxShadow: '0 0 10px rgba(255, 90, 0, 0.2)',
+                  transition: 'color 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-title)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+              >
+                {darkMode ? <Sun size={17} /> : <Moon size={17} />}
+              </button>
+
+              {/* Account / Sign In Button */}
+              <button
+                onClick={onOpenAuth}
+                className="btn-pill-primary"
+                style={{
+                  padding: '0.42rem 0.95rem',
+                  fontSize: '12.5px',
                 }}
               >
-                <Link2 size={scrolled ? 14 : 15} />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                <span
-                  className="font-display"
-                  style={{
-                    fontSize: scrolled ? '17px' : '18px',
-                    fontWeight: 800,
-                    color: 'var(--text-title)',
-                    letterSpacing: '-0.02em',
-                    transition: 'font-size 0.3s ease',
-                  }}
-                >
-                  Slug
+                {currentUser?.avatar_url ? (
+                  <img
+                    src={currentUser.avatar_url}
+                    alt={currentUser.name}
+                    style={{ width: '18px', height: '18px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.4)' }}
+                  />
+                ) : (
+                  <Key size={13} />
+                )}
+                <span>
+                  {currentUser ? currentUser.name.split(' ')[0] : token ? 'Account' : 'Sign In'}
                 </span>
-                <span style={{ color: '#FF5A00', fontWeight: 900, fontSize: scrolled ? '17px' : '18px' }}>.</span>
-              </div>
-            </button>
+              </button>
+            </div>
 
-            {/* Backend Health Badge */}
-            {isHealthy !== null && (
-              <span
+            {/* Mobile toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }} className="mobile-toggle">
+              <button
+                onClick={toggleTheme}
+                aria-label="Toggle Theme"
                 style={{
-                  fontSize: '9.5px',
-                  fontWeight: 700,
-                  padding: '2px 7px',
-                  borderRadius: '9999px',
-                  backgroundColor: isHealthy ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                  color: isHealthy ? '#22C55E' : '#EF4444',
-                  display: 'inline-flex',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  color: 'var(--text-muted)',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: '4px',
-                  border: `1px solid ${isHealthy ? 'rgba(34, 197, 94, 0.28)' : 'rgba(239, 68, 68, 0.28)'}`,
                 }}
-                title={isHealthy ? 'Go Backend Online' : 'Backend Offline'}
               >
-                <span
-                  style={{
-                    width: '4.5px',
-                    height: '4.5px',
-                    borderRadius: '50%',
-                    backgroundColor: isHealthy ? '#22C55E' : '#EF4444',
-                    boxShadow: isHealthy ? '0 0 6px #22C55E' : 'none',
-                  }}
-                />
-                <span className="font-mono">{isHealthy ? 'API ONLINE' : 'OFFLINE'}</span>
-              </span>
-            )}
-          </div>
-
-          {/* Seamless Center Dock Segmented Switcher */}
-          <nav
-            style={{
-              display: 'none',
-              alignItems: 'center',
-              position: 'relative',
-              backgroundColor: 'var(--bg-input)',
-              borderRadius: '9999px',
-              padding: '3px',
-              border: '1px solid var(--border-subtle)',
-              overflow: 'hidden',
-            }}
-            className="desktop-nav"
-          >
-            {/* Ultra-Smooth Animated Sliding Pill Indicator */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '3px',
-                bottom: '3px',
-                left: 0,
-                transform: `translateX(${indicatorStyle.left}px)`,
-                width: `${indicatorStyle.width}px`,
-                opacity: indicatorStyle.opacity,
-                backgroundColor: 'var(--dock-active-bg)',
-                border: '1px solid var(--dock-active-border)',
-                borderRadius: '9999px',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)',
-                transition: 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), width 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease',
-                zIndex: 1,
-                pointerEvents: 'none',
-              }}
-            />
-
-            {/* Sliding Pill Tab 1: Shorten */}
-            <button
-              ref={shortenTabRef}
-              type="button"
-              onClick={() => onSelectView('home')}
-              style={{
-                position: 'relative',
-                zIndex: 2,
-                fontSize: '12px',
-                fontWeight: currentView === 'home' ? 700 : 500,
-                color: currentView === 'home' ? 'var(--text-title)' : 'var(--text-muted)',
-                background: 'transparent',
-                border: 'none',
-                borderRadius: '9999px',
-                padding: '4px 13px',
-                cursor: 'pointer',
-                transition: 'color 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-              }}
-            >
-              <Link2 size={12} />
-              <span>Shorten</span>
-            </button>
-
-            {/* Sliding Pill Tab 2: Dashboard */}
-            <button
-              ref={dashboardTabRef}
-              type="button"
-              onClick={handleDashboardNav}
-              style={{
-                position: 'relative',
-                zIndex: 2,
-                fontSize: '12px',
-                fontWeight: currentView === 'links' ? 700 : 500,
-                color: currentView === 'links' ? 'var(--text-title)' : 'var(--text-muted)',
-                background: 'transparent',
-                border: 'none',
-                borderRadius: '9999px',
-                padding: '4px 13px',
-                cursor: 'pointer',
-                transition: 'color 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-              }}
-            >
-              {token ? <LayoutDashboard size={12} /> : <Lock size={11} color="#FF5A00" />}
-              <span>Dashboard</span>
-            </button>
-          </nav>
-
-          {/* Desktop Right Actions */}
-          <div
-            style={{
-              display: 'none',
-              alignItems: 'center',
-              gap: '0.65rem',
-            }}
-            className="desktop-actions"
-          >
-            {/* Theme toggle */}
-            <button
-              onClick={toggleTheme}
-              aria-label="Toggle Theme"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '6px',
-                borderRadius: '8px',
-                color: 'var(--text-muted)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-title)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-            >
-              {darkMode ? <Sun size={17} /> : <Moon size={17} />}
-            </button>
-
-            {/* Auth Pill Button: Vibrant Orange */}
-            <button
-              onClick={onOpenAuth}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                background: 'var(--theme-primary-gradient)',
-                color: '#FFFFFF',
-                border: '1px solid rgba(255, 255, 255, 0.25)',
-                borderRadius: '9999px',
-                padding: scrolled ? '0.3rem 0.65rem 0.3rem 0.55rem' : '0.35rem 0.75rem 0.35rem 0.65rem',
-                fontSize: '11.5px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 2px 14px var(--theme-orange-glow)',
-                transition: 'all 0.3s ease',
-              }}
-            >
-              {currentUser?.avatar_url ? (
-                <img src={currentUser.avatar_url} alt="" style={{ width: '16px', height: '16px', borderRadius: '50%' }} />
-              ) : (
-                <Key size={11} />
-              )}
-              <span>
-                {currentUser
-                  ? currentUser.name.split(' ')[0]
-                  : token
-                  ? 'Account'
-                  : 'Sign In'}
-              </span>
-              <kbd
-                className="font-mono"
+                {darkMode ? <Sun size={17} /> : <Moon size={17} />}
+              </button>
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label="Open Menu"
                 style={{
-                  fontSize: '8.5px',
-                  padding: '1px 3.5px',
-                  borderRadius: '3px',
-                  backgroundColor: 'rgba(0, 0, 0, 0.25)',
-                  color: '#FFFFFF',
-                  letterSpacing: '0.04em',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  color: 'var(--text-main)',
+                  display: 'flex',
+                  alignItems: 'center',
                 }}
               >
-                ⌘K
-              </kbd>
-            </button>
+                {mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}
+              </button>
+            </div>
           </div>
+        </header>
 
-          {/* Mobile toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }} className="mobile-toggle">
-            <button
-              onClick={toggleTheme}
-              aria-label="Toggle Theme"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '4px',
-                color: 'var(--text-muted)',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              {darkMode ? <Sun size={17} /> : <Moon size={17} />}
-            </button>
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Open Menu"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '4px',
-                color: 'var(--text-main)',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              {mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Drawer */}
+        {/* Mobile Dropdown Panel: Smooth sliding squircle glass card */}
         {mobileMenuOpen && (
           <div
+            className="mobile-menu-panel"
             style={{
-              padding: '0.85rem 1.25rem',
-              borderTop: '1px solid var(--border-subtle)',
+              pointerEvents: 'auto',
+              width: '100%',
+              maxWidth: scrolled ? '720px' : '900px',
+              marginTop: '0.5rem',
+              backgroundColor: 'var(--bg-dock-scrolled)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '1.25rem',
+              boxShadow: 'var(--dock-shadow)',
+              backdropFilter: 'blur(24px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+              padding: '0.85rem 1rem 1rem',
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.5rem',
+              gap: '0.45rem',
+              animation: 'menuDropdownSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              zIndex: 50,
             }}
           >
             <button
@@ -428,18 +434,25 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onSelectView('home');
               }}
               style={{
-                fontSize: '13px',
-                fontWeight: 600,
-                color: currentView === 'home' ? '#FF5A00' : 'var(--text-main)',
+                fontSize: '13.5px',
+                fontWeight: currentView === 'home' ? 700 : 500,
+                color: currentView === 'home' ? '#FF5A00' : 'var(--text-title)',
+                backgroundColor: currentView === 'home' ? 'var(--badge-orange-bg)' : 'transparent',
                 textAlign: 'left',
-                background: 'transparent',
-                border: 'none',
-                padding: '0.25rem 0',
+                border: currentView === 'home' ? '1px solid var(--badge-orange-border)' : '1px solid transparent',
+                borderRadius: '10px',
+                padding: '0.65rem 0.85rem',
                 cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.15s ease',
               }}
             >
-              Shorten Link
+              <Link2 size={15} color={currentView === 'home' ? '#FF5A00' : 'var(--text-muted)'} />
+              <span>Shorten Links</span>
             </button>
+
             <button
               type="button"
               onClick={() => {
@@ -447,33 +460,52 @@ export const Navbar: React.FC<NavbarProps> = ({
                 handleDashboardNav();
               }}
               style={{
-                fontSize: '13px',
-                fontWeight: 600,
-                color: currentView === 'links' ? '#FF5A00' : 'var(--text-main)',
+                fontSize: '13.5px',
+                fontWeight: currentView === 'links' ? 700 : 500,
+                color: currentView === 'links' ? '#FF5A00' : 'var(--text-title)',
+                backgroundColor: currentView === 'links' ? 'var(--badge-orange-bg)' : 'transparent',
                 textAlign: 'left',
-                background: 'transparent',
-                border: 'none',
-                padding: '0.25rem 0',
+                border: currentView === 'links' ? '1px solid var(--badge-orange-border)' : '1px solid transparent',
+                borderRadius: '10px',
+                padding: '0.65rem 0.85rem',
                 cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.15s ease',
               }}
             >
-              Dashboard (All Links)
+              <LayoutDashboard size={15} color={currentView === 'links' ? '#FF5A00' : 'var(--text-muted)'} />
+              <span>Dashboard & Analytics</span>
             </button>
-            <div style={{ paddingTop: '0.35rem', borderTop: '1px solid var(--border-subtle)' }}>
+
+            <div style={{ paddingTop: '0.5rem', marginTop: '0.2rem', borderTop: '1px solid var(--border-subtle)' }}>
               <button
+                type="button"
                 onClick={() => {
                   setMobileMenuOpen(false);
                   onOpenAuth();
                 }}
                 className="btn-pill-primary"
-                style={{ width: '100%', justifyContent: 'center', padding: '0.45rem' }}
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  padding: '0.6rem 1rem',
+                  fontSize: '13px',
+                  borderRadius: '10px',
+                }}
               >
-                {currentUser ? currentUser.name : token ? 'Account' : 'Sign In'}
+                {currentUser?.avatar_url ? (
+                  <img src={currentUser.avatar_url} alt="" style={{ width: '18px', height: '18px', borderRadius: '50%' }} />
+                ) : (
+                  <Key size={13} />
+                )}
+                <span>{currentUser ? currentUser.name : token ? 'Account' : 'Sign In'}</span>
               </button>
             </div>
           </div>
         )}
-      </header>
+      </div>
 
       <style>{`
         @media (min-width: 640px) {
@@ -482,6 +514,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           .mobile-toggle { display: none !important; }
         }
       `}</style>
-    </div>
+    </>
   );
 };

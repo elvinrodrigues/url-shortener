@@ -64,7 +64,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         onShowToast('Pasted URL from clipboard', text, 'info');
       }
     } catch {
-      // clipboard permission denied
+      // clipboard permission fallback
     }
   };
 
@@ -110,7 +110,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
       const res = await shortenURL(payload, token || undefined);
       setResult({ res, originalUrl: validUrl, expiresAt: payload.expires_at });
-      setShowAuthPrompt(true); // show sign-in prompt for guest users
+      setShowAuthPrompt(true);
       onShortenSuccess(res, validUrl, payload.expires_at);
       onShowToast('Short link created', res.short_url, 'success');
     } catch (err: any) {
@@ -141,9 +141,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
   return (
     <section
+      className="hero-section"
       style={{
         position: 'relative',
-        padding: '7.5rem 1.25rem 3rem',
+        padding: '7.5rem 1.25rem 2.5rem',
         maxWidth: '820px',
         margin: '0 auto',
         textAlign: 'center',
@@ -156,7 +157,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           top: '20%',
           left: '50%',
           transform: 'translateX(-50%)',
-          width: '750px',
+          width: 'min(750px, 90vw)',
           height: '420px',
           background: 'var(--spotlight-glow)',
           filter: 'blur(70px)',
@@ -168,13 +169,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       <div style={{ position: 'relative', zIndex: 1 }}>
         {/* Main Hero Title */}
         <h1
-          className="font-display"
+          className="font-display hero-title"
           style={{
-            fontSize: 'clamp(2rem, 4.8vw, 3.6rem)',
+            fontSize: 'clamp(1.85rem, 5.5vw, 3.6rem)',
             fontWeight: 800,
-            lineHeight: 1.15,
+            lineHeight: 1.18,
             letterSpacing: '-0.03em',
-            marginBottom: '1rem',
+            marginBottom: '0.85rem',
             color: 'var(--text-title)',
           }}
         >
@@ -186,100 +187,92 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
         {/* Subtitle */}
         <p
+          className="hero-subtitle"
           style={{
-            fontSize: '1rem',
+            fontSize: 'clamp(0.88rem, 3.5vw, 1rem)',
             color: 'var(--text-muted)',
-            maxWidth: '520px',
-            margin: '0 auto 2rem',
+            maxWidth: 'min(90vw, 500px)',
+            margin: '0 auto 1.75rem',
             lineHeight: 1.5,
           }}
         >
           Turn long, messy URLs into neat short links with live click tracking and instant QR codes.
         </p>
 
-        {/* Glowing Pill Input Form */}
+        {/* Glowing Pill Input Form (Transforms to mobile card on <520px) */}
         <div
+          className="hero-form-container"
           style={{
-            position: 'relative',
-            borderRadius: '9999px',
-            backgroundColor: 'var(--bg-input)',
             border: isInputFocused ? '1px solid rgba(255, 90, 0, 0.45)' : '1px solid var(--border-subtle)',
             boxShadow: isInputFocused
               ? '0 0 55px rgba(255, 90, 0, 0.35), 0 0 20px rgba(255, 90, 0, 0.18), 0 8px 24px rgba(0, 0, 0, 0.7)'
               : 'var(--input-shadow)',
-            padding: '5px 6px 5px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            transition: 'box-shadow 0.25s ease, border-color 0.25s ease',
           }}
         >
-          <form
-            onSubmit={handleShorten}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              width: '100%',
-              gap: '0.5rem',
-            }}
-          >
-            <Link2 size={17} color="#FF5A00" style={{ flexShrink: 0, opacity: 0.9 }} />
+          <form onSubmit={handleShorten} className="hero-form-inner">
+            <div className="hero-input-row">
+              <Link2 size={16} color="#FF5A00" style={{ flexShrink: 0, opacity: 0.9 }} />
 
-            <input
-              type="text"
-              required
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              onFocus={() => setIsInputFocused(true)}
-              onBlur={() => setIsInputFocused(false)}
-              placeholder="https://example.com/long-url"
-              style={{
-                flex: 1,
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                color: 'var(--text-main)',
-                fontSize: '0.92rem',
-                fontFamily: 'inherit',
-                padding: '0.45rem 0.25rem',
-              }}
-            />
+              <input
+                type="text"
+                required
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onFocus={() => setIsInputFocused(true)}
+                onBlur={() => setIsInputFocused(false)}
+                placeholder="https://example.com/long-url"
+                className="hero-input-field"
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  color: 'var(--text-main)',
+                  fontSize: '0.9rem',
+                  fontFamily: 'inherit',
+                  padding: '0.45rem 0.2rem',
+                }}
+              />
 
-            {/* Paste button */}
-            <button
-              type="button"
-              onClick={handlePasteClipboard}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--text-dim)',
-                cursor: 'pointer',
-                padding: '5px 8px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                transition: 'color 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-title)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-dim)')}
-              title="Paste from clipboard"
-            >
-              <ClipboardPaste size={13} />
-              <span>Paste</span>
-            </button>
+              {/* Paste button */}
+              <button
+                type="button"
+                onClick={handlePasteClipboard}
+                className="hero-paste-btn"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-dim)',
+                  cursor: 'pointer',
+                  padding: '5px 6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  flexShrink: 0,
+                  transition: 'color 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-title)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-dim)')}
+                title="Paste from clipboard"
+              >
+                <ClipboardPaste size={14} />
+                <span className="paste-text">Paste</span>
+              </button>
+            </div>
 
             {/* Shorten Button: Vibrant Orange */}
             <button
               type="submit"
               disabled={loading}
-              className="btn-pill-primary"
+              className="btn-pill-primary hero-submit-btn"
               style={{
-                padding: '0.55rem 1.35rem',
+                padding: '0.52rem 1.25rem',
                 borderRadius: '9999px',
                 flexShrink: 0,
+                fontSize: '0.84rem',
               }}
             >
               {loading ? (
@@ -290,7 +283,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               ) : (
                 <>
                   <span>Shorten</span>
-                  <ArrowRight size={14} />
+                  <ArrowRight size={13} />
                 </>
               )}
             </button>
@@ -416,6 +409,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   className="font-mono"
                   style={{
                     flex: 1,
+                    minWidth: 0,
                     background: 'transparent',
                     border: 'none',
                     outline: 'none',
@@ -450,19 +444,23 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   borderRadius: '8px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Clock size={14} color={expiresAt ? '#FF5A00' : 'var(--text-dim)'} />
-                  <span style={{ fontWeight: expiresAt ? 700 : 500 }}>
-                    {expiresAt ? formattedExpirationDisplay : 'Pick Calendar & Clock Time (Quick Presets)'}
+                  <span>
+                    {expiresAt
+                      ? formattedExpirationDisplay
+                      : token
+                      ? 'Select expiration (Default: Permanent Link)'
+                      : 'Select expiration (Default: 30 Days)'}
                   </span>
                 </div>
-                <Calendar size={14} color={expiresAt ? '#FF5A00' : 'var(--text-dim)'} />
+                <span style={{ fontSize: '11px', color: '#FF5A00', fontWeight: 600 }}>Set</span>
               </button>
             </div>
           </div>
         )}
 
-        {/* Error Message */}
+        {/* Error notice */}
         {error && (
           <div
             style={{
@@ -488,8 +486,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
         {/* Result Capsule Pill */}
         {result && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.65rem', marginTop: '1.25rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.65rem', marginTop: '1.25rem', width: '100%' }}>
             <div
+              className="hero-result-card"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -500,13 +499,14 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 borderRadius: '9999px',
                 boxShadow: 'var(--card-shadow)',
                 animation: 'fadeSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                maxWidth: '100%',
               }}
             >
               <a
                 href={result.res.short_url}
                 target="_blank"
                 rel="noreferrer"
-                className="font-mono"
+                className="font-mono hero-result-link"
                 style={{
                   fontSize: '0.88rem',
                   fontWeight: 700,
@@ -515,13 +515,16 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 <span>{result.res.short_url}</span>
-                <ExternalLink size={12} />
+                <ExternalLink size={12} style={{ flexShrink: 0 }} />
               </a>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div className="hero-result-actions" style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                 <button
                   type="button"
                   onClick={() => onViewStats(result.res.short_code)}
@@ -584,9 +587,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               </div>
             </div>
 
-            {/* Prompt for Guests: "Sign in to manage your URLs and view analytics" */}
+            {/* Prompt for Guests */}
             {!token && showAuthPrompt && (
               <div
+                className="hero-auth-prompt"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -598,14 +602,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   fontSize: '0.76rem',
                   color: 'var(--text-main)',
                   animation: 'fadeSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                  maxWidth: '100%',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Sparkles size={12} color="#FF5A00" />
-                  <span>Sign in to manage your URLs and view analytics</span>
+                  <Sparkles size={12} color="#FF5A00" style={{ flexShrink: 0 }} />
+                  <span>Sign in to manage URLs and view analytics</span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
                   <button
                     type="button"
                     onClick={onOpenAuth}
@@ -649,12 +654,16 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         )}
       </div>
 
-      {/* Expiration DateTimePickerModal */}
+      {/* Date Time Picker Modal */}
       <DateTimePickerModal
         isOpen={dateModalOpen}
         value={expiresAt}
         isGuest={!token}
-        onChange={(val) => setExpiresAt(val)}
+        onChange={(val: string) => {
+          setExpiresAt(val);
+          setDateModalOpen(false);
+          onShowToast('Expiration set', 'Short URL will automatically expire', 'info');
+        }}
         onClose={() => setDateModalOpen(false)}
       />
     </section>
