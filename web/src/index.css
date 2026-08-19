@@ -1,47 +1,75 @@
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  /* Core Theme: Pure Obsidian + White Glow + Vibrant Ember Orange Buttons */
+  /* Brand Accent: Ember Orange */
   --theme-primary: #FF5A00;
   --theme-primary-hover: #FF7020;
   --theme-primary-gradient: linear-gradient(135deg, #FF4500 0%, #FF5A00 50%, #F59E0B 100%);
   --theme-primary-text: #FFFFFF;
   --theme-accent: #FF5A00;
-  --theme-orange-glow: rgba(255, 90, 0, 0.45);
-  
-  /* Crisp Pure White Glow */
-  --glow-white-strong: rgba(255, 255, 255, 0.22);
-  --glow-white-soft: rgba(255, 255, 255, 0.09);
-  --glow-white-subtle: rgba(255, 255, 255, 0.04);
+  --theme-orange-glow: rgba(255, 90, 0, 0.35);
 
-  /* Deep Black Surfaces */
+  /* Light Theme (Default when .dark is absent) */
+  --bg-page: #F8F9FA;
+  --bg-surface: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F1F3F5;
+  --bg-input: #FFFFFF;
+  --bg-modal: #FFFFFF;
+  --bg-dock: rgba(255, 255, 255, 0.92);
+  --bg-dock-scrolled: rgba(255, 255, 255, 0.98);
+
+  --text-main: #111827;
+  --text-title: #0F172A;
+  --text-muted: #64748B;
+  --text-dim: #94A3B8;
+
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(0, 0, 0, 0.18);
+  --border-white-glow: rgba(0, 0, 0, 0.12);
+
+  --dock-active-bg: rgba(0, 0, 0, 0.06);
+  --dock-active-border: rgba(0, 0, 0, 0.12);
+  --dock-shadow: 0 10px 28px rgba(0, 0, 0, 0.06), 0 6px 14px rgba(255, 90, 0, 0.06);
+  --input-shadow: 0 0 35px rgba(255, 90, 0, 0.22), 0 0 12px rgba(255, 90, 0, 0.1), 0 4px 16px rgba(0, 0, 0, 0.06);
+  --card-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  --spotlight-glow: radial-gradient(ellipse at center, rgba(255, 90, 0, 0.12) 0%, rgba(255, 140, 0, 0.03) 50%, transparent 70%);
+
+  --badge-orange-bg: rgba(255, 90, 0, 0.1);
+  --badge-orange-border: rgba(255, 90, 0, 0.25);
+  --badge-orange-text: #E04F00;
+}
+
+html.dark {
+  /* Dark Theme: Pitch Black + Bottom-Directional Ember Orange Dock Glow */
   --bg-page: #000000;
   --bg-surface: #0A0A0C;
   --bg-card: #0F0F12;
   --bg-card-hover: #16161B;
   --bg-input: #08080A;
+  --bg-modal: #0F0F12;
+  --bg-dock: rgba(15, 15, 18, 0.92);
+  --bg-dock-scrolled: rgba(15, 15, 18, 0.98);
 
-  /* High Contrast Typography */
   --text-main: #EDEDED;
+  --text-title: #FFFFFF;
   --text-muted: #8E8E93;
   --text-dim: #545458;
 
-  /* Borders */
   --border-subtle: rgba(255, 255, 255, 0.09);
   --border-hover: rgba(255, 255, 255, 0.22);
   --border-white-glow: rgba(255, 255, 255, 0.35);
 
-  /* Spotlights */
-  --spotlight-white: rgba(255, 255, 255, 0.14);
-  --spotlight-white-halo: rgba(255, 255, 255, 0.04);
+  --dock-active-bg: rgba(255, 255, 255, 0.14);
+  --dock-active-border: rgba(255, 255, 255, 0.25);
+  --dock-shadow: 0 14px 34px rgba(0, 0, 0, 0.8), 0 8px 18px rgba(255, 90, 0, 0.12);
+  --input-shadow: 0 0 45px rgba(255, 90, 0, 0.26), 0 0 16px rgba(255, 90, 0, 0.14), 0 8px 24px rgba(0, 0, 0, 0.7);
+  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --spotlight-glow: radial-gradient(ellipse at center, rgba(255, 90, 0, 0.16) 0%, rgba(255, 140, 0, 0.04) 45%, transparent 70%);
 
-  /* Badges */
   --badge-orange-bg: rgba(255, 90, 0, 0.12);
   --badge-orange-border: rgba(255, 90, 0, 0.28);
   --badge-orange-text: #FF5A00;
-
-  --dock-active-bg: rgba(255, 255, 255, 0.14);
-  --dock-active-border: rgba(255, 255, 255, 0.25);
 }
 
 * {
@@ -55,14 +83,18 @@ html {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--bg-page);
   color: var(--text-main);
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 body {
   min-height: 100vh;
   overflow-x: hidden;
   line-height: 1.5;
+  background-color: var(--bg-page);
+  color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 .font-display {
@@ -79,7 +111,7 @@ body {
   align-items: center;
   gap: 0.4rem;
   background: var(--theme-primary-gradient);
-  color: #FFFFFF;
+  color: #FFFFFF !important;
   font-weight: 700;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 9999px;
@@ -102,7 +134,7 @@ body {
 
 /* Icon action buttons */
 .btn-icon-action {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   color: var(--text-muted);

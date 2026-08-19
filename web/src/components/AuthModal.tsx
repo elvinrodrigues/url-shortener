@@ -89,7 +89,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
         display: 'flex',
@@ -105,11 +105,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         style={{
           width: '100%',
           maxWidth: '430px',
-          backgroundColor: '#0F0F12',
+          backgroundColor: 'var(--bg-modal)',
           borderRadius: '1.35rem',
           padding: '1.75rem',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 255, 255, 0.08)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
+          boxShadow: 'var(--dock-shadow)',
+          border: '1px solid var(--border-subtle)',
           position: 'relative',
         }}
         onClick={(e) => e.stopPropagation()}
@@ -131,7 +131,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             >
               <Key size={16} />
             </div>
-            <h3 className="font-display" style={{ fontSize: '1.15rem', fontWeight: 800, color: '#FFFFFF', margin: 0 }}>
+            <h3 className="font-display" style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-title)', margin: 0 }}>
               Authentication
             </h3>
           </div>
@@ -186,7 +186,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <UserIcon size={30} />
               </div>
             )}
-            <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#FFFFFF', margin: '0 0 0.25rem' }}>
+            <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-title)', margin: '0 0 0.25rem' }}>
               {currentUser.name}
             </h4>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>

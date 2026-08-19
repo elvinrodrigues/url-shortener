@@ -48,16 +48,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, [onOpenAuth]);
 
   const toggleTheme = () => {
-    setDarkMode((prev) => {
-      const next = !prev;
-      if (next) {
-        document.documentElement.classList.add('dark');
-        localStorage.setItem('slug-theme', 'dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-      return next;
-    });
+    setDarkMode((prev) => !prev);
   };
 
   const handleDashboardNav = () => {
@@ -92,17 +83,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           maxWidth: scrolled ? '720px' : '900px',
           width: '100%',
           borderRadius: '9999px',
-          backgroundColor: scrolled
-            ? 'rgba(15, 15, 18, 0.88)'
-            : 'rgba(15, 15, 18, 0.45)',
-          border: `1px solid ${
-            scrolled
-              ? 'rgba(255, 255, 255, 0.2)'
-              : 'var(--border-subtle)'
-          }`,
-          boxShadow: scrolled
-            ? '0 12px 36px rgba(0, 0, 0, 0.7), 0 0 25px rgba(255, 255, 255, 0.08)'
-            : '0 2px 10px rgba(0, 0, 0, 0.2)',
+          backgroundColor: scrolled ? 'var(--bg-dock-scrolled)' : 'var(--bg-dock)',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: 'var(--dock-shadow)',
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)',
           transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -140,14 +123,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                   width: scrolled ? '26px' : '28px',
                   height: scrolled ? '26px' : '28px',
                   borderRadius: '7px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  backgroundColor: 'rgba(255, 90, 0, 0.12)',
+                  border: '1px solid rgba(255, 90, 0, 0.25)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: '#FF5A00',
                   transition: 'all 0.3s ease',
-                  boxShadow: '0 0 10px rgba(255, 90, 0, 0.25)',
+                  boxShadow: '0 0 10px rgba(255, 90, 0, 0.2)',
                 }}
               >
                 <Link2 size={scrolled ? 14 : 15} />
@@ -158,7 +141,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   style={{
                     fontSize: scrolled ? '17px' : '18px',
                     fontWeight: 800,
-                    color: '#FFFFFF',
+                    color: 'var(--text-title)',
                     letterSpacing: '-0.02em',
                     transition: 'font-size 0.3s ease',
                   }}
@@ -206,7 +189,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               display: 'none',
               alignItems: 'center',
               position: 'relative',
-              backgroundColor: 'rgba(0, 0, 0, 0.45)',
+              backgroundColor: 'var(--bg-input)',
               borderRadius: '9999px',
               padding: '3px',
               border: '1px solid var(--border-subtle)',
@@ -222,7 +205,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 zIndex: 2,
                 fontSize: '12px',
                 fontWeight: currentView === 'home' ? 700 : 500,
-                color: currentView === 'home' ? '#FFFFFF' : 'var(--text-muted)',
+                color: currentView === 'home' ? 'var(--text-title)' : 'var(--text-muted)',
                 backgroundColor: currentView === 'home' ? 'var(--dock-active-bg)' : 'transparent',
                 border: currentView === 'home' ? '1px solid var(--dock-active-border)' : '1px solid transparent',
                 borderRadius: '9999px',
@@ -232,7 +215,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '5px',
-                boxShadow: currentView === 'home' ? '0 2px 8px rgba(0, 0, 0, 0.4)' : 'none',
               }}
             >
               <Link2 size={12} />
@@ -248,7 +230,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 zIndex: 2,
                 fontSize: '12px',
                 fontWeight: currentView === 'links' ? 700 : 500,
-                color: currentView === 'links' ? '#FFFFFF' : 'var(--text-muted)',
+                color: currentView === 'links' ? 'var(--text-title)' : 'var(--text-muted)',
                 backgroundColor: currentView === 'links' ? 'var(--dock-active-bg)' : 'transparent',
                 border: currentView === 'links' ? '1px solid var(--dock-active-border)' : '1px solid transparent',
                 borderRadius: '9999px',
@@ -258,7 +240,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '5px',
-                boxShadow: currentView === 'links' ? '0 2px 8px rgba(0, 0, 0, 0.4)' : 'none',
               }}
             >
               {token ? <LayoutDashboard size={12} /> : <Lock size={11} color="#FF5A00" />}
@@ -283,7 +264,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
-                padding: '5px',
+                padding: '6px',
                 borderRadius: '8px',
                 color: 'var(--text-muted)',
                 display: 'flex',
@@ -291,10 +272,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 justifyContent: 'center',
                 transition: 'all 0.15s ease',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#FFFFFF')}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-title)')}
               onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
             >
-              {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+              {darkMode ? <Sun size={17} /> : <Moon size={17} />}
             </button>
 
             {/* Auth Pill Button: Vibrant Orange */}
@@ -325,7 +306,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {currentUser
                   ? currentUser.name.split(' ')[0]
                   : token
-                  ? 'Elvin'
+                  ? 'Account'
                   : 'Sign In'}
               </span>
               <kbd
@@ -334,7 +315,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   fontSize: '8.5px',
                   padding: '1px 3.5px',
                   borderRadius: '3px',
-                  backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                  backgroundColor: 'rgba(0, 0, 0, 0.25)',
                   color: '#FFFFFF',
                   letterSpacing: '0.04em',
                 }}
@@ -359,7 +340,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 alignItems: 'center',
               }}
             >
-              {darkMode ? <Sun size={16} /> : <Moon size={16} />}
+              {darkMode ? <Sun size={17} /> : <Moon size={17} />}
             </button>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -437,7 +418,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="btn-pill-primary"
                 style={{ width: '100%', justifyContent: 'center', padding: '0.45rem' }}
               >
-                {currentUser ? currentUser.name : token ? 'Elvin' : 'Sign In'}
+                {currentUser ? currentUser.name : token ? 'Account' : 'Sign In'}
               </button>
             </div>
           </div>

@@ -8,12 +8,11 @@ import { AuthModal } from './components/AuthModal.tsx';
 import { StatsModal } from './components/StatsModal.tsx';
 import { QRCodeModal } from './components/QRCodeModal.tsx';
 import { CursorGlow } from './components/CursorGlow.tsx';
-import { NotFound } from './components/NotFound.tsx';
 import { ToastContainer, type ToastMessage } from './components/Toast.tsx';
 import {
   checkHealth,
   getUserURLs,
-  API_BASE_URL,
+  getShortUrl,
   type User,
   type HistoryItem,
   type CreateURLResponse,
@@ -61,45 +60,25 @@ export const App: React.FC = () => {
   });
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [statsModalOpen, setStatsModalOpen] = useState(false);
-  const [selectedStatsCode, setSelectedStatsCode] = useState('');
-  const [qrModalOpen, setQrModalOpen] = useState(false);
-  const [qrModalData, setQrModalData] = useState<{ url: string; code: string }>({ url: '', code: '' });
+  const [statsCode, setStatsCode] = useState<string | null>(null);
+  const [qrModalData, setQrModalData] = useState<{ url: string; code: string } | null>(null);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // 404 Routing state
-  const [notFoundState, setNotFoundState] = useState<{ is404: boolean; code: string; isExpired: boolean }>({
-    is404: false,
-    code: '',
-    isExpired: false,
-  });
-
-  // Toast notifications
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
-
-  const addToast = useCallback((title: string, message?: string, type: 'success' | 'error' | 'info' = 'info') => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, title, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
-  }, []);
-
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
+  // Sync theme class with HTML root
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
+      localStorage.setItem('slug-theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('slug-theme', 'light');
     }
   }, [darkMode]);
 
-  // Sync browser URL & history with view state (HTML5 pushState / popstate)
+  // Handle browser popstate
   useEffect(() => {
-    const handlePopState = () => {
+    const handleLocationChange = () => {
       const pathname = window.location.pathname.toLowerCase();
       const hash = window.location.hash.toLowerCase();
       if (pathname === '/dashboard' || pathname === '/links' || hash === '#dashboard' || hash === '#links') {
@@ -108,124 +87,109 @@ export const App: React.FC = () => {
         setCurrentView('home');
       }
     };
-    window.addEventListener('popstate', handlePopState);
-    window.addEventListener('hashchange', handlePopState);
+
+    window.addEventListener('popstate', handleLocationChange);
+    return () => window.removeEventListener('popstate', handleLocationChange);
+  }, []);
+
+  const handleNavigateView = (view: 'home' | 'links') => {
+    setCurrentView(view);
+    if (view === 'links') {
+      window.history.pushState(null, '', '/dashboard');
+    } else {
+      window.history.pushState(null, '', '/');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const showToast = useCallback(
+    (title: string, message?: string, type: 'success' | 'error' | 'info' = 'info') => {
+      const id = Date.now().toString() + Math.random().toString(36).substring(2, 6);
+      setToasts((prev) => [...prev, { id, title, message, type }]);
+    },
+    [],
+  );
+
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Health check
+  useEffect(() => {
+    let mounted = true;
+    checkHealth()
+      .then((healthy) => {
+        if (mounted) setIsHealthy(healthy);
+      })
+      .catch(() => {
+        if (mounted) setIsHealthy(false);
+      });
     return () => {
-      window.removeEventListener('popstate', handlePopState);
-      window.removeEventListener('hashchange', handlePopState);
+      mounted = false;
     };
   }, []);
 
-  // Fetch user links when token is available
-  useEffect(() => {
+  // Fetch logged-in user URLs from PostgreSQL
+  const fetchUserLinks = useCallback(async () => {
     if (!token) {
       setUserLinks([]);
       return;
     }
-    const loadLinks = async () => {
-      try {
-        const data = await getUserURLs(token);
-        setUserLinks(data || []);
-      } catch (err: any) {
-        if (err.message && (err.message.includes('expired') || err.message.includes('401'))) {
-          setToken('');
-          setUser(null);
-          localStorage.removeItem('slug_jwt_token');
-          localStorage.removeItem('slug_user');
-          setUserLinks([]);
-        }
+    try {
+      const links = await getUserURLs(token);
+      setUserLinks(links || []);
+    } catch (err: any) {
+      if (err.message && (err.message.includes('401') || err.message.includes('Unauthorized') || err.message.includes('expired'))) {
+        setToken('');
+        setUser(null);
+        localStorage.removeItem('slug_jwt_token');
+        localStorage.removeItem('slug_user');
+        showToast('Session expired', 'Please sign in again', 'info');
       }
-    };
-    loadLinks();
-  }, [token, refreshTrigger]);
-
-  // Handle path routing for short codes and health
-  useEffect(() => {
-    const pathname = window.location.pathname;
-    const pathCode = pathname.substring(1).trim();
-
-    // Reserved paths for client app
-    const isClientRoute = !pathCode || pathCode === 'dashboard' || pathCode === 'links' || pathCode === 'auth' || pathCode === 'stats';
-
-    if (!isClientRoute && !pathCode.includes('.')) {
-      const testLink = async () => {
-        try {
-          const res = await fetch(`${API_BASE_URL}/${encodeURIComponent(pathCode)}`, {
-            method: 'GET',
-            redirect: 'manual',
-          });
-
-          if (res.status === 404) {
-            setNotFoundState({ is404: true, code: pathCode, isExpired: false });
-            return;
-          }
-          if (res.status === 410) {
-            setNotFoundState({ is404: true, code: pathCode, isExpired: true });
-            return;
-          }
-
-          window.location.href = `${API_BASE_URL}/${pathCode}`;
-        } catch {
-          setNotFoundState({ is404: true, code: pathCode, isExpired: false });
-        }
-      };
-
-      testLink();
-      return;
     }
+  }, [token, showToast]);
 
-    const verifyHealth = async () => {
-      const healthy = await checkHealth();
-      setIsHealthy(healthy);
-    };
-    verifyHealth();
-    const interval = setInterval(verifyHealth, 15000);
-    return () => clearInterval(interval);
-  }, []);
+  useEffect(() => {
+    fetchUserLinks();
+  }, [fetchUserLinks, refreshTrigger]);
 
   const handleSaveAuth = (newToken: string, newUser: User | null) => {
     setToken(newToken);
     setUser(newUser);
-
     if (newToken) {
       localStorage.setItem('slug_jwt_token', newToken);
+      if (newUser) {
+        localStorage.setItem('slug_user', JSON.stringify(newUser));
+      }
     } else {
       localStorage.removeItem('slug_jwt_token');
-      setUserLinks([]); // Clear account links on logout
-    }
-
-    if (newUser) {
-      localStorage.setItem('slug_user', JSON.stringify(newUser));
-    } else {
       localStorage.removeItem('slug_user');
+      setUserLinks([]);
     }
-
     setRefreshTrigger((prev) => prev + 1);
   };
 
   const handleShortenSuccess = (
     res: CreateURLResponse,
     originalUrl: string,
-    expiresAt?: string
+    expiresAt?: string,
   ) => {
     if (token) {
-      // Logged-in: The link was created with the user token and saved to PostgreSQL
+      // User is logged in: Trigger server refetch to load link from database
       setRefreshTrigger((prev) => prev + 1);
     } else {
-      // Guest: Save to guest browser history in localStorage
+      // Guest user: Save exclusively to local history (defaulting to 30d if omitted)
+      const finalExpiry = expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       const newItem: HistoryItem = {
         short_code: res.short_code,
         short_url: res.short_url,
         long_url: originalUrl,
         created_at: new Date().toISOString(),
-        expires_at: expiresAt,
-        click_count: 0,
-        is_active: true,
+        expires_at: finalExpiry,
       };
-
       setGuestHistory((prev) => {
         const filtered = prev.filter((item) => item.short_code !== res.short_code);
-        const updated = [newItem, ...filtered].slice(0, 50);
+        const updated = [newItem, ...filtered];
         localStorage.setItem('slug_guest_history', JSON.stringify(updated));
         return updated;
       });
@@ -234,7 +198,8 @@ export const App: React.FC = () => {
 
   const handleDeleteHistoryItem = (code: string) => {
     if (token) {
-      setUserLinks((prev) => prev.filter((item) => item.short_code !== code));
+      setUserLinks((prev) => prev.filter((l) => l.short_code !== code));
+      setRefreshTrigger((prev) => prev + 1);
     } else {
       setGuestHistory((prev) => {
         const updated = prev.filter((item) => item.short_code !== code);
@@ -244,47 +209,31 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleViewStats = (code: string) => {
-    setSelectedStatsCode(code);
-    setStatsModalOpen(true);
-  };
-
-  const handleOpenQR = (url: string, code: string) => {
-    setQrModalData({ url, code });
-    setQrModalOpen(true);
-  };
-
-  const handleSelectView = (view: 'home' | 'links') => {
-    setCurrentView(view);
-    const targetPath = view === 'links' ? '/dashboard' : '/';
-    window.history.pushState({}, '', targetPath);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // When logged in: display user's PostgreSQL account links
-  // When logged out: display strictly guest links created on this browser
+  // Convert URLs for Unified Rendering
   const allDisplayLinks: LinkItemData[] = token
-    ? userLinks
-    : guestHistory.map((h) => ({
-        short_code: h.short_code,
-        long_url: h.long_url,
-        click_count: h.click_count || 0,
-        created_at: h.created_at,
-        expires_at: h.expires_at,
-        is_active: h.is_active ?? true,
+    ? userLinks.map((item) => ({
+        short_code: item.short_code,
+        short_url: getShortUrl(item.short_code),
+        long_url: item.long_url,
+        created_at: item.created_at,
+        expires_at: item.expires_at,
+        click_count: item.click_count,
+        is_active: item.is_active,
+      }))
+    : guestHistory.map((item) => ({
+        short_code: item.short_code,
+        short_url: item.short_url,
+        long_url: item.long_url,
+        created_at: item.created_at,
+        expires_at: item.expires_at,
+        click_count: 0,
+        is_active: true,
       }));
 
-  // If path is a 404 / 410 short link, render NotFound view directly
-  if (notFoundState.is404) {
-    return <NotFound pathCode={notFoundState.code} isExpired={notFoundState.isExpired} />;
-  }
-
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-page)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column' }}>
-      {/* Pure Soft White Cursor Spotlight */}
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <CursorGlow darkMode={darkMode} />
 
-      {/* Floating Pill Top Navbar */}
       <Navbar
         darkMode={darkMode}
         setDarkMode={setDarkMode}
@@ -292,89 +241,83 @@ export const App: React.FC = () => {
         currentUser={user}
         isHealthy={isHealthy}
         currentView={currentView}
-        onSelectView={handleSelectView}
+        onSelectView={handleNavigateView}
         onOpenAuth={() => setAuthModalOpen(true)}
       />
 
-      {/* Main Content Router */}
-      <main style={{ flex: 1 }}>
+      <main style={{ flex: 1, position: 'relative', zIndex: 1 }}>
         {currentView === 'home' ? (
           <>
-            {/* 1. Hero with White Glow Spotlight & Orange Shorten Button */}
             <HeroSection
               token={token}
               onShortenSuccess={handleShortenSuccess}
-              onViewStats={handleViewStats}
-              onOpenQR={handleOpenQR}
-              onShowToast={addToast}
+              onShowToast={showToast}
+              onOpenQR={(url, code) => setQrModalData({ url, code })}
+              onViewStats={(code) => setStatsCode(code)}
               onOpenAuth={() => setAuthModalOpen(true)}
             />
 
-            {/* 2. Top 5 Recent Links Feed */}
             <LiveDashboard
               token={token}
               currentUser={user}
               allDisplayLinks={allDisplayLinks}
               refreshTrigger={refreshTrigger}
               onOpenAuth={() => setAuthModalOpen(true)}
-              onViewStats={handleViewStats}
-              onOpenQR={handleOpenQR}
+              onViewStats={(code) => setStatsCode(code)}
+              onOpenQR={(url, code) => setQrModalData({ url, code })}
               onDeleteHistoryItem={handleDeleteHistoryItem}
-              onShowToast={addToast}
-              onNavigateAllLinks={() => handleSelectView('links')}
+              onShowToast={showToast}
+              onNavigateAllLinks={() => handleNavigateView('links')}
             />
           </>
         ) : (
-          /* 3. Dedicated /dashboard All Links Page */
           <AllLinksView
             token={token}
             currentUser={user}
             allDisplayLinks={allDisplayLinks}
             setUserLinks={setUserLinks}
             onOpenAuth={() => setAuthModalOpen(true)}
+            onViewStats={(code) => setStatsCode(code)}
+            onOpenQR={(url, code) => setQrModalData({ url, code })}
             onDeleteHistoryItem={handleDeleteHistoryItem}
-            onNavigateHome={() => handleSelectView('home')}
-            onViewStats={handleViewStats}
-            onOpenQR={handleOpenQR}
-            onShowToast={addToast}
+            onShowToast={showToast}
+            onNavigateHome={() => handleNavigateView('home')}
           />
         )}
       </main>
 
-      {/* Footer */}
       <Footer darkMode={darkMode} />
 
-      {/* Toast Notification Container */}
-      <ToastContainer toasts={toasts} onDismiss={removeToast} />
-
-      {/* Auth Modal */}
+      {/* Modals & Portals */}
       <AuthModal
         isOpen={authModalOpen}
         currentToken={token}
         currentUser={user}
         onSaveAuth={handleSaveAuth}
         onClose={() => setAuthModalOpen(false)}
-        onShowToast={addToast}
+        onShowToast={showToast}
       />
 
-      {/* Analytics Inspector Modal */}
       <StatsModal
-        isOpen={statsModalOpen}
+        initialCode={statsCode || ''}
         token={token}
-        initialCode={selectedStatsCode}
-        onClose={() => setStatsModalOpen(false)}
+        isOpen={!!statsCode}
+        onClose={() => setStatsCode(null)}
         onOpenAuth={() => setAuthModalOpen(true)}
-        onShowToast={addToast}
+        onShowToast={showToast}
       />
 
-      {/* QR Code Modal */}
-      <QRCodeModal
-        isOpen={qrModalOpen}
-        shortUrl={qrModalData.url}
-        shortCode={qrModalData.code}
-        onClose={() => setQrModalOpen(false)}
-        onCopy={(text) => addToast('Copied short link', text, 'success')}
-      />
+      {qrModalData && (
+        <QRCodeModal
+          url={qrModalData.url}
+          shortCode={qrModalData.code}
+          isOpen={true}
+          onClose={() => setQrModalData(null)}
+          onShowToast={showToast}
+        />
+      )}
+
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 };

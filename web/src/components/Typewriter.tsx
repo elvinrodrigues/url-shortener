@@ -40,6 +40,7 @@ export const Typewriter: React.FC = () => {
       style={{
         color: '#FF5A00',
         display: 'inline-block',
+        whiteSpace: 'nowrap',
       }}
     >
       <span>{words[wordIndex].substring(0, charIndex)}</span>

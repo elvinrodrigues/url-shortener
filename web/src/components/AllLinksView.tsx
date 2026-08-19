@@ -64,7 +64,7 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
             transform: 'translateX(-50%)',
             width: '600px',
             height: '350px',
-            background: 'radial-gradient(ellipse at center, rgba(255, 255, 255, 0.08) 0%, transparent 70%)',
+            background: 'var(--spotlight-glow)',
             filter: 'blur(70px)',
             pointerEvents: 'none',
             zIndex: 0,
@@ -76,11 +76,11 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
           style={{
             position: 'relative',
             zIndex: 1,
-            backgroundColor: '#0C0C0E',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
+            backgroundColor: 'var(--bg-modal)',
+            border: '1px solid var(--border-subtle)',
             borderRadius: '1.5rem',
             padding: '2.5rem 1.75rem',
-            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 255, 255, 0.06)',
+            boxShadow: 'var(--dock-shadow)',
             animation: 'fadeSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
           }}
         >
@@ -97,7 +97,7 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 1.25rem',
-              boxShadow: '0 0 25px rgba(255, 90, 0, 0.35)',
+              boxShadow: '0 0 25px rgba(255, 90, 0, 0.25)',
             }}
           >
             <Lock size={26} />
@@ -108,7 +108,7 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
             style={{
               fontSize: '1.65rem',
               fontWeight: 800,
-              color: '#FFFFFF',
+              color: 'var(--text-title)',
               marginBottom: '0.5rem',
               letterSpacing: '-0.02em',
             }}
@@ -131,8 +131,8 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
           {/* Feature List */}
           <div
             style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid rgba(255, 255, 255, 0.07)',
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: '12px',
               padding: '1rem 1.25rem',
               textAlign: 'left',
@@ -327,7 +327,7 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
                 style={{
                   fontSize: '1.6rem',
                   fontWeight: 800,
-                  color: '#FFFFFF',
+                  color: 'var(--text-title)',
                   margin: 0,
                   letterSpacing: '-0.02em',
                 }}
@@ -423,12 +423,13 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
             border: '1px solid var(--border-subtle)',
             borderRadius: '12px',
             padding: '1.15rem',
+            boxShadow: 'var(--card-shadow)',
           }}
         >
           <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase' }}>
             Total Links
           </span>
-          <div className="font-display" style={{ fontSize: '2rem', fontWeight: 800, color: '#FFFFFF', marginTop: '2px' }}>
+          <div className="font-display" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-title)', marginTop: '2px' }}>
             {allDisplayLinks.length}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
@@ -442,6 +443,7 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
             border: '1px solid var(--border-subtle)',
             borderRadius: '12px',
             padding: '1.15rem',
+            boxShadow: 'var(--card-shadow)',
           }}
         >
           <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase' }}>
@@ -461,6 +463,7 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
             border: '1px solid var(--border-subtle)',
             borderRadius: '12px',
             padding: '1.15rem',
+            boxShadow: 'var(--card-shadow)',
           }}
         >
           <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase' }}>
@@ -504,7 +507,7 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
               borderRadius: '9999px',
               padding: '6px 12px 6px 32px',
               fontSize: '12px',
-              color: '#FFFFFF',
+              color: 'var(--text-main)',
               outline: 'none',
             }}
           />
@@ -574,15 +577,9 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
                 cursor: 'pointer',
               }}
             >
-              <option value="clicks" style={{ background: '#121216' }}>
-                Most Clicks
-              </option>
-              <option value="date" style={{ background: '#121216' }}>
-                Latest Created
-              </option>
-              <option value="name" style={{ background: '#121216' }}>
-                Slug (A-Z)
-              </option>
+              <option value="clicks">Most Clicks</option>
+              <option value="date">Latest Created</option>
+              <option value="name">Slug (A-Z)</option>
             </select>
           </div>
         </div>
@@ -605,7 +602,7 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
                 width: '40px',
                 height: '40px',
                 borderRadius: '10px',
-                backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                backgroundColor: 'rgba(255, 90, 0, 0.08)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',

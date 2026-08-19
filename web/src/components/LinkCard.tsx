@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Copy, Check, ExternalLink, QrCode, BarChart3, Trash2 } from 'lucide-react';
 import { Favicon } from './Favicon.tsx';
-import { API_BASE_URL } from '../api.ts';
+import { getShortUrl } from '../api.ts';
 
 export interface LinkItemData {
   short_code: string;
@@ -32,7 +32,7 @@ export const LinkCard: React.FC<LinkCardProps> = ({
   const [copied, setCopied] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  const realShortUrl = `${API_BASE_URL}/${link.short_code}`;
+  const realShortUrl = getShortUrl(link.short_code);
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -71,11 +71,9 @@ export const LinkCard: React.FC<LinkCardProps> = ({
         flexWrap: 'wrap',
         gap: '0.85rem',
         transition: 'all 0.18s ease',
-        border: `1px solid ${isHovered ? 'rgba(255, 255, 255, 0.22)' : 'var(--border-subtle)'}`,
+        border: `1px solid ${isHovered ? 'var(--border-hover)' : 'var(--border-subtle)'}`,
         backgroundColor: isHovered ? 'var(--bg-card-hover)' : 'var(--bg-card)',
-        boxShadow: isHovered
-          ? '0 4px 20px rgba(0, 0, 0, 0.45), 0 0 15px rgba(255, 255, 255, 0.08)'
-          : '0 2px 10px rgba(0, 0, 0, 0.2)',
+        boxShadow: isHovered ? 'var(--card-shadow)' : 'none',
       }}
     >
       {/* Left: Domain Favicon & Slug Stack */}
@@ -89,7 +87,7 @@ export const LinkCard: React.FC<LinkCardProps> = ({
               style={{
                 fontSize: '14px',
                 fontWeight: 700,
-                color: isHovered ? '#FF5A00' : '#FFFFFF',
+                color: isHovered ? '#FF5A00' : 'var(--text-title)',
                 transition: 'color 0.15s ease',
               }}
             >
@@ -102,113 +100,114 @@ export const LinkCard: React.FC<LinkCardProps> = ({
               style={{
                 background: 'transparent',
                 border: 'none',
-                cursor: 'pointer',
                 color: copied ? '#FF5A00' : 'var(--text-dim)',
+                cursor: 'pointer',
                 padding: '2px',
                 display: 'flex',
                 alignItems: 'center',
                 transition: 'color 0.15s ease',
               }}
-              title="Quick copy link"
+              title="Copy link"
             >
               {copied ? <Check size={12} /> : <Copy size={12} />}
             </button>
+
+            <a
+              href={realShortUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                color: 'var(--text-dim)',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '2px',
+                textDecoration: 'none',
+                transition: 'color 0.15s ease',
+              }}
+              title="Open destination"
+            >
+              <ExternalLink size={12} />
+            </a>
           </div>
 
-          <div
+          {/* Truncated Target URL */}
+          <span
             style={{
-              fontSize: '11.5px',
+              fontSize: '12px',
               color: 'var(--text-muted)',
+              whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              maxWidth: '380px',
+              maxWidth: '320px',
             }}
             title={link.long_url}
           >
-            {link.long_url}
-          </div>
+            {link.long_url.replace(/^https?:\/\//, '')}
+          </span>
         </div>
       </div>
 
-      {/* Right: Glowing Orange Click Badge, Timestamp, & Actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexShrink: 0 }}>
-        {/* Orange Click Count Capsule */}
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            padding: '3px 10px',
-            borderRadius: '9999px',
-            backgroundColor: 'rgba(255, 90, 0, 0.12)',
-            border: '1px solid rgba(255, 90, 0, 0.28)',
-            color: '#FF5A00',
-            fontSize: '11px',
-            fontWeight: 700,
-          }}
-        >
-          <span className="font-mono">{link.click_count || 0} clicks</span>
-        </div>
+      {/* Right: Metrics & Actions */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+        {/* Click counter (only show if > 0 or logged in) */}
+        {link.click_count > 0 && (
+          <span
+            className="font-mono"
+            style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              color: 'var(--text-dim)',
+              backgroundColor: 'var(--bg-input)',
+              padding: '2px 8px',
+              borderRadius: '6px',
+              border: '1px solid var(--border-subtle)',
+            }}
+          >
+            {link.click_count} {link.click_count === 1 ? 'click' : 'clicks'}
+          </span>
+        )}
 
-        {/* Relative Timestamp */}
+        {/* Time ago */}
         <span
+          className="font-mono"
           style={{
-            fontSize: '11.5px',
+            fontSize: '11px',
             color: 'var(--text-dim)',
-            minWidth: '50px',
-            textAlign: 'right',
           }}
         >
           {formatTimeAgo(link.created_at)}
         </span>
 
-        {/* Action Group */}
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="btn-icon-action"
-            title="Copy Short URL"
-          >
-            {copied ? <Check size={13} color="#FF5A00" /> : <Copy size={13} />}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onOpenQR(realShortUrl, link.short_code)}
-            className="btn-icon-action"
-            title="View QR Code"
-          >
-            <QrCode size={13} />
-          </button>
-
-          <a
-            href={realShortUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="btn-icon-action"
-            title="Visit Destination"
-          >
-            <ExternalLink size={13} />
-          </a>
-
+        {/* Action icons stack */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <button
             type="button"
             onClick={() => onViewStats(link.short_code)}
             className="btn-icon-action"
-            style={{ color: '#FF5A00' }}
-            title="Analytics"
+            style={{ padding: '5px', borderRadius: '6px' }}
+            title="View statistics"
           >
             <BarChart3 size={13} />
           </button>
 
           <button
             type="button"
+            onClick={() => onOpenQR(realShortUrl, link.short_code)}
+            className="btn-icon-action"
+            style={{ padding: '5px', borderRadius: '6px' }}
+            title="Download QR code"
+          >
+            <QrCode size={13} />
+          </button>
+
+          <button
+            type="button"
             onClick={() => onDelete(link.short_code)}
             className="btn-icon-action"
-            style={{ color: 'rgba(239, 68, 68, 0.8)' }}
-            title="Deactivate Link"
+            style={{ padding: '5px', borderRadius: '6px', color: 'var(--text-dim)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#EF4444')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-dim)')}
+            title="Deactivate link"
           >
             <Trash2 size={13} />
           </button>

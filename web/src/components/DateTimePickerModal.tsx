@@ -174,7 +174,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.82)',
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         display: 'flex',
@@ -190,11 +190,11 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
         style={{
           width: '100%',
           maxWidth: '430px',
-          backgroundColor: '#0F0F12',
+          backgroundColor: 'var(--bg-modal)',
           borderRadius: '1.35rem',
           padding: '1.5rem',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 35px rgba(255, 255, 255, 0.08)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
+          boxShadow: 'var(--dock-shadow)',
+          border: '1px solid var(--border-subtle)',
           position: 'relative',
           animation: 'fadeSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         }}
@@ -217,7 +217,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
             >
               <CalendarIcon size={16} />
             </div>
-            <h3 className="font-display" style={{ fontSize: '1.15rem', fontWeight: 800, color: '#FFFFFF', margin: 0 }}>
+            <h3 className="font-display" style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-title)', margin: 0 }}>
               Set Expiration Date & Time
             </h3>
           </div>
@@ -287,8 +287,8 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
           {/* Calendar Picker Card */}
           <div
             style={{
-              background: 'rgba(8, 8, 10, 0.75)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: '12px',
               padding: '0.85rem',
             }}
@@ -307,7 +307,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
               >
                 <ChevronLeft size={16} />
               </button>
-              <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#FFFFFF' }}>
+              <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-title)' }}>
                 {MONTH_NAMES[viewMonth]} {viewYear}
               </span>
               <button
@@ -379,13 +379,13 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                         ? 'linear-gradient(135deg, #FF4500, #FF5A00)'
                         : isDisabled
                         ? 'transparent'
-                        : 'rgba(255, 255, 255, 0.03)',
-                      color: isSelected ? '#FFFFFF' : isDisabled ? '#333338' : '#EDEDED',
+                        : 'var(--bg-card)',
+                      color: isSelected ? '#FFFFFF' : isDisabled ? 'var(--text-dim)' : 'var(--text-main)',
                       fontSize: '0.8rem',
                       fontWeight: isSelected ? 700 : 500,
                       cursor: isDisabled ? 'not-allowed' : 'pointer',
                       transition: 'all 0.15s ease',
-                      boxShadow: isSelected ? '0 0 12px rgba(255, 90, 0, 0.4)' : 'none',
+                      opacity: isDisabled ? 0.35 : 1,
                     }}
                     title={isExceedingGuestLimit ? 'Guest links max duration is 30 days. Sign in for longer dates.' : ''}
                   >
@@ -399,8 +399,8 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
           {/* Clock Time Selector */}
           <div
             style={{
-              background: 'rgba(8, 8, 10, 0.75)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: '12px',
               padding: '0.7rem 0.85rem',
               display: 'flex',
@@ -420,9 +420,9 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                 onChange={(e) => handleTimeChange(parseInt(e.target.value), minute, ampm)}
                 className="font-mono"
                 style={{
-                  background: '#16161B',
+                  background: 'var(--bg-card)',
                   border: '1px solid var(--border-subtle)',
-                  color: '#FFFFFF',
+                  color: 'var(--text-main)',
                   padding: '0.3rem 0.45rem',
                   borderRadius: '6px',
                   fontSize: '0.85rem',
@@ -445,9 +445,9 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                 onChange={(e) => handleTimeChange(hour12, parseInt(e.target.value), ampm)}
                 className="font-mono"
                 style={{
-                  background: '#16161B',
+                  background: 'var(--bg-card)',
                   border: '1px solid var(--border-subtle)',
-                  color: '#FFFFFF',
+                  color: 'var(--text-main)',
                   padding: '0.3rem 0.45rem',
                   borderRadius: '6px',
                   fontSize: '0.85rem',
@@ -466,7 +466,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
               <div
                 style={{
                   display: 'flex',
-                  background: '#08080A',
+                  background: 'var(--bg-card)',
                   borderRadius: '6px',
                   padding: '2px',
                   border: '1px solid var(--border-subtle)',
@@ -513,12 +513,12 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
           {/* Live Preview Display */}
           <div
             style={{
-              background: 'rgba(255, 90, 0, 0.08)',
-              border: '1px solid rgba(255, 90, 0, 0.22)',
+              background: 'var(--badge-orange-bg)',
+              border: '1px solid var(--badge-orange-border)',
               borderRadius: '10px',
               padding: '0.65rem 0.85rem',
               fontSize: '0.82rem',
-              color: '#FFFFFF',
+              color: 'var(--text-main)',
             }}
           >
             <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Expires on: </span>

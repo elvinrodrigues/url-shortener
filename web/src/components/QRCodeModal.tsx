@@ -2,27 +2,35 @@ import React, { useState, useRef } from 'react';
 import { X, Download, Copy, Check, ExternalLink, QrCode as QrIcon } from 'lucide-react';
 
 interface QRCodeModalProps {
-  isOpen: boolean;
-  shortUrl: string;
+  url?: string;
+  shortUrl?: string;
   shortCode: string;
+  isOpen: boolean;
   onClose: () => void;
-  onCopy: (text: string) => void;
+  onShowToast?: (title: string, message?: string, type?: 'success' | 'error' | 'info') => void;
+  onCopy?: (text: string) => void;
 }
 
 export const QRCodeModal: React.FC<QRCodeModalProps> = ({
-  isOpen,
+  url,
   shortUrl,
   shortCode,
+  isOpen,
   onClose,
+  onShowToast,
   onCopy,
 }) => {
   const [copied, setCopied] = useState(false);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
+  const targetUrl = url || shortUrl || '';
+
   if (!isOpen) return null;
 
   const handleCopy = () => {
-    onCopy(shortUrl);
+    navigator.clipboard.writeText(targetUrl);
+    if (onCopy) onCopy(targetUrl);
+    if (onShowToast) onShowToast('Copied short link', targetUrl, 'success');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -48,6 +56,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
       a.download = `qr-${shortCode}.png`;
       a.href = pngUrl;
       a.click();
+      if (onShowToast) onShowToast('Downloaded QR Code', `Saved qr-${shortCode}.png`, 'success');
     };
 
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
@@ -58,7 +67,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
         display: 'flex',
@@ -74,11 +83,11 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
         style={{
           width: '100%',
           maxWidth: '390px',
-          backgroundColor: '#0F0F12',
+          backgroundColor: 'var(--bg-modal)',
           borderRadius: '1.25rem',
           padding: '1.75rem',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 255, 255, 0.08)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
+          boxShadow: 'var(--dock-shadow)',
+          border: '1px solid var(--border-subtle)',
           textAlign: 'center',
           position: 'relative',
         }}
@@ -101,7 +110,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
             >
               <QrIcon size={16} />
             </div>
-            <h3 className="font-display" style={{ fontSize: '1.15rem', fontWeight: 800, color: '#FFFFFF' }}>
+            <h3 className="font-display" style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-title)', margin: 0 }}>
               Dynamic QR Code
             </h3>
           </div>
@@ -122,7 +131,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
           </button>
         </div>
 
-        {/* QR Code Container */}
+        {/* QR Code Container (Always white backing for scannability) */}
         <div
           style={{
             backgroundColor: '#FFFFFF',
@@ -131,143 +140,159 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.25)',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.15)',
             marginBottom: '1.25rem',
+            border: '1px solid rgba(0, 0, 0, 0.08)',
           }}
         >
           <svg
             ref={svgRef}
             width="200"
             height="200"
-            viewBox="0 0 220 220"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 200 200"
+            style={{ display: 'block' }}
           >
-            <rect width="220" height="220" fill="white" />
-            {/* Corner Marker Top Left */}
-            <rect x="20" y="20" width="50" height="50" rx="10" fill="#0A0A0A" />
-            <rect x="30" y="30" width="30" height="30" rx="6" fill="#FFFFFF" />
-            <rect x="38" y="38" width="14" height="14" rx="3" fill="#FF5A00" />
+            {/* Background */}
+            <rect width="200" height="200" fill="#FFFFFF" rx="8" />
 
-            {/* Corner Marker Top Right */}
-            <rect x="150" y="20" width="50" height="50" rx="10" fill="#0A0A0A" />
-            <rect x="160" y="30" width="30" height="30" rx="6" fill="#FFFFFF" />
-            <rect x="168" y="38" width="14" height="14" rx="3" fill="#FF5A00" />
+            {/* Top Left Finder */}
+            <rect x="20" y="20" width="45" height="45" fill="#0F0F12" rx="4" />
+            <rect x="27" y="27" width="31" height="31" fill="#FFFFFF" rx="2" />
+            <rect x="34" y="34" width="17" height="17" fill="#FF5A00" rx="2" />
 
-            {/* Corner Marker Bottom Left */}
-            <rect x="20" y="150" width="50" height="50" rx="10" fill="#0A0A0A" />
-            <rect x="30" y="160" width="30" height="30" rx="6" fill="#FFFFFF" />
-            <rect x="38" y="168" width="14" height="14" rx="3" fill="#FF5A00" />
+            {/* Top Right Finder */}
+            <rect x="135" y="20" width="45" height="45" fill="#0F0F12" rx="4" />
+            <rect x="142" y="27" width="31" height="31" fill="#FFFFFF" rx="2" />
+            <rect x="149" y="34" width="17" height="17" fill="#FF5A00" rx="2" />
 
-            {/* Matrix Data Bits */}
-            <rect x="80" y="25" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="100" y="25" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="120" y="25" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="80" y="45" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="110" y="45" width="20" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="90" y="65" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="110" y="65" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="130" y="65" width="10" height="10" rx="2" fill="#FF5A00" />
+            {/* Bottom Left Finder */}
+            <rect x="20" y="135" width="45" height="45" fill="#0F0F12" rx="4" />
+            <rect x="27" y="142" width="31" height="31" fill="#FFFFFF" rx="2" />
+            <rect x="34" y="149" width="17" height="17" fill="#FF5A00" rx="2" />
 
-            <rect x="25" y="80" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="45" y="80" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="75" y="80" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="95" y="80" width="30" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="135" y="80" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="165" y="80" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="185" y="80" width="10" height="10" rx="2" fill="#0A0A0A" />
+            {/* Decorative Data Dots Matrix */}
+            <rect x="75" y="25" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="90" y="25" width="8" height="8" fill="#FF5A00" rx="1.5" />
+            <rect x="105" y="25" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="120" y="25" width="8" height="8" fill="#0F0F12" rx="1.5" />
 
-            <rect x="25" y="100" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="55" y="100" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="85" y="100" width="20" height="10" rx="2" fill="#FF5A00" />
-            <rect x="115" y="100" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="145" y="100" width="20" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="175" y="100" width="20" height="10" rx="2" fill="#0A0A0A" />
+            <rect x="75" y="40" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="105" y="40" width="8" height="8" fill="#FF5A00" rx="1.5" />
+            <rect x="120" y="40" width="8" height="8" fill="#0F0F12" rx="1.5" />
 
-            <rect x="25" y="120" width="20" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="65" y="120" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="95" y="120" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="125" y="120" width="20" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="155" y="120" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="185" y="120" width="10" height="10" rx="2" fill="#0A0A0A" />
+            <rect x="75" y="55" width="8" height="8" fill="#FF5A00" rx="1.5" />
+            <rect x="90" y="55" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="120" y="55" width="8" height="8" fill="#0F0F12" rx="1.5" />
 
-            <rect x="85" y="145" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="105" y="145" width="20" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="135" y="145" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="155" y="145" width="20" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="185" y="145" width="10" height="10" rx="2" fill="#0A0A0A" />
+            <rect x="25" y="75" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="40" y="75" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="55" y="75" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="75" y="75" width="8" height="8" fill="#FF5A00" rx="1.5" />
+            <rect x="90" y="75" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="105" y="75" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="120" y="75" width="8" height="8" fill="#FF5A00" rx="1.5" />
+            <rect x="140" y="75" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="155" y="75" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="170" y="75" width="8" height="8" fill="#0F0F12" rx="1.5" />
 
-            <rect x="85" y="165" width="20" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="115" y="165" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="135" y="165" width="20" height="10" rx="2" fill="#FF5A00" />
-            <rect x="165" y="165" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="185" y="165" width="15" height="10" rx="2" fill="#0A0A0A" />
+            <rect x="25" y="90" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="55" y="90" width="8" height="8" fill="#FF5A00" rx="1.5" />
+            <rect x="75" y="90" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="90" y="90" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="105" y="90" width="8" height="8" fill="#FF5A00" rx="1.5" />
+            <rect x="140" y="90" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="170" y="90" width="8" height="8" fill="#0F0F12" rx="1.5" />
 
-            <rect x="85" y="185" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="105" y="185" width="30" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="145" y="185" width="10" height="10" rx="2" fill="#0A0A0A" />
-            <rect x="165" y="185" width="30" height="10" rx="2" fill="#0A0A0A" />
+            <rect x="25" y="105" width="8" height="8" fill="#FF5A00" rx="1.5" />
+            <rect x="40" y="105" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="75" y="105" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="105" y="105" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="120" y="105" width="8" height="8" fill="#FF5A00" rx="1.5" />
+            <rect x="155" y="105" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="170" y="105" width="8" height="8" fill="#0F0F12" rx="1.5" />
+
+            <rect x="75" y="135" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="90" y="135" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="105" y="135" width="8" height="8" fill="#FF5A00" rx="1.5" />
+            <rect x="120" y="135" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="140" y="135" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="155" y="135" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="170" y="135" width="8" height="8" fill="#FF5A00" rx="1.5" />
+
+            <rect x="75" y="150" width="8" height="8" fill="#FF5A00" rx="1.5" />
+            <rect x="105" y="150" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="140" y="150" width="8" height="8" fill="#FF5A00" rx="1.5" />
+            <rect x="170" y="150" width="8" height="8" fill="#0F0F12" rx="1.5" />
+
+            <rect x="75" y="165" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="90" y="165" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="105" y="165" width="8" height="8" fill="#0F0F12" rx="1.5" />
+            <rect x="120" y="165" width="8" height="8" fill="#FF5A00" rx="1.5" />
+            <rect x="155" y="165" width="8" height="8" fill="#0F0F12" rx="1.5" />
           </svg>
         </div>
 
-        {/* URL Pill */}
+        {/* Short Link URL Pill */}
         <div
-          className="font-mono"
           style={{
-            fontSize: '0.85rem',
-            fontWeight: 700,
-            color: '#FF5A00',
-            backgroundColor: 'var(--bg-input)',
-            padding: '0.5rem 0.75rem',
-            borderRadius: '8px',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '9999px',
+            padding: '0.4rem 0.85rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.5rem',
             marginBottom: '1.25rem',
-            wordBreak: 'break-all',
           }}
         >
-          {shortUrl}
+          <span
+            className="font-mono"
+            style={{
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              color: '#FF5A00',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {targetUrl}
+          </span>
+
+          <a
+            href={targetUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{ color: 'var(--text-dim)', display: 'flex', alignItems: 'center' }}
+            title="Open link"
+          >
+            <ExternalLink size={13} />
+          </a>
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
           <button
             type="button"
             onClick={handleCopy}
             className="btn-icon-action"
-            style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem' }}
+            style={{ padding: '0.6rem', fontSize: '0.82rem', fontWeight: 600, gap: '5px' }}
           >
             {copied ? <Check size={14} color="#FF5A00" /> : <Copy size={14} />}
-            <span style={{ marginLeft: '4px' }}>{copied ? 'Copied' : 'Copy'}</span>
+            <span>{copied ? 'Copied' : 'Copy Link'}</span>
           </button>
 
-          {/* Orange Save PNG Button */}
+          {/* Orange Download Button */}
           <button
             type="button"
             onClick={handleDownload}
             className="btn-pill-primary"
-            style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem', justifyContent: 'center' }}
+            style={{ padding: '0.6rem', fontSize: '0.82rem', justifyContent: 'center', gap: '5px' }}
           >
             <Download size={14} />
-            <span>Save PNG</span>
+            <span>Download PNG</span>
           </button>
-        </div>
-
-        <div style={{ marginTop: '0.75rem' }}>
-          <a
-            href={shortUrl}
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              fontSize: '0.78rem',
-              color: 'var(--text-muted)',
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
-          >
-            <span>Test open redirect</span>
-            <ExternalLink size={11} />
-          </a>
         </div>
       </div>
     </div>

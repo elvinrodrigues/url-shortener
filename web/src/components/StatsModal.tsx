@@ -13,7 +13,7 @@ import {
   ExternalLink,
   Link2,
 } from 'lucide-react';
-import { getStats, API_BASE_URL, type URLStats } from '../api.ts';
+import { getStats, getShortUrl, type URLStats } from '../api.ts';
 
 interface StatsModalProps {
   isOpen: boolean;
@@ -82,7 +82,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
         display: 'flex',
@@ -98,11 +98,11 @@ export const StatsModal: React.FC<StatsModalProps> = ({
         style={{
           width: '100%',
           maxWidth: '500px',
-          backgroundColor: '#0F0F12',
+          backgroundColor: 'var(--bg-modal)',
           borderRadius: '1.25rem',
           padding: '1.75rem',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 255, 255, 0.08)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
+          boxShadow: 'var(--dock-shadow)',
+          border: '1px solid var(--border-subtle)',
           position: 'relative',
           maxHeight: '90vh',
           overflowY: 'auto',
@@ -126,7 +126,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({
             >
               <BarChart3 size={18} />
             </div>
-            <h3 className="font-display" style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF' }}>
+            <h3 className="font-display" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-title)' }}>
               Link Analytics
             </h3>
           </div>
@@ -173,7 +173,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({
                 background: 'transparent',
                 border: 'none',
                 outline: 'none',
-                color: '#FFFFFF',
+                color: 'var(--text-main)',
                 fontSize: '0.85rem',
               }}
             />
@@ -291,11 +291,11 @@ export const StatsModal: React.FC<StatsModalProps> = ({
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span className="font-mono" style={{ fontWeight: 700, color: '#FF5A00' }}>
-                    {API_BASE_URL}/{stats.short_code}
+                    {getShortUrl(stats.short_code)}
                   </span>
                   <button
                     type="button"
-                    onClick={() => handleCopy(`${API_BASE_URL}/${stats.short_code}`)}
+                    onClick={() => handleCopy(getShortUrl(stats.short_code))}
                     style={{
                       background: 'transparent',
                       border: 'none',

@@ -1,6 +1,20 @@
 export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
+export const getShortUrl = (code: string): string => {
+  if (typeof window !== 'undefined' && window.location.origin) {
+    return `${window.location.origin}/${code}`;
+  }
+  return `https://url.elvinrodrigues.dev/${code}`;
+};
+
+export const getShortHost = (): string => {
+  if (typeof window !== 'undefined' && window.location.host) {
+    return `${window.location.host}/`;
+  }
+  return 'url.elvinrodrigues.dev/';
+};
+
 export interface CreateURLRequest {
   long_url: string;
   custom_code?: string;
@@ -77,7 +91,11 @@ export async function shortenURL(
         body: JSON.stringify(data),
       });
       if (retryRes.ok) {
-        return retryRes.json();
+        const json = await retryRes.json();
+        return {
+          short_code: json.short_code,
+          short_url: getShortUrl(json.short_code),
+        };
       }
     }
 
@@ -98,7 +116,11 @@ export async function shortenURL(
     throw new Error(err.error || `Failed to shorten URL (HTTP ${res.status})`);
   }
 
-  return res.json();
+  const json = await res.json();
+  return {
+    short_code: json.short_code,
+    short_url: getShortUrl(json.short_code),
+  };
 }
 
 export async function getStats(code: string, token?: string): Promise<URLStats> {
@@ -118,18 +140,38 @@ export async function getStats(code: string, token?: string): Promise<URLStats> 
     if (res.status === 404) {
       throw new Error(`Short code "/${code}" not found.`);
     }
-    if (res.status === 401) {
-      throw new Error('Sign in required to view stats for this private link.');
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('Sign in with the owner account to view analytics.');
     }
-    const err = await res.json().catch(() => ({ error: 'Failed to retrieve link stats' }));
-    throw new Error(err.error || `Server error (${res.status})`);
+    const err = await res.json().catch(() => ({ error: 'Failed to fetch analytics' }));
+    throw new Error(err.error || 'Failed to fetch analytics');
+  }
+
+  return res.json();
+}
+
+export async function getUserURLs(token: string): Promise<URLStats[]> {
+  const res = await fetch(`${API_BASE_URL}/user/urls`, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token.trim()}`,
+    },
+  });
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      throw new Error('Unauthorized');
+    }
+    const err = await res.json().catch(() => ({ error: 'Failed to fetch user links' }));
+    throw new Error(err.error || 'Failed to fetch user links');
   }
 
   return res.json();
 }
 
 export async function deleteURL(code: string, token: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/${encodeURIComponent(code)}`, {
+  const res = await fetch(`${API_BASE_URL}/urls/${encodeURIComponent(code)}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token.trim()}`,
@@ -137,33 +179,13 @@ export async function deleteURL(code: string, token: string): Promise<void> {
   });
 
   if (!res.ok) {
-    if (res.status === 401) {
-      throw new Error('Sign in required to deactivate this link.');
+    if (res.status === 404) {
+      throw new Error(`Short code "/${code}" not found.`);
     }
-    const err = await res.json().catch(() => ({ error: 'Failed to deactivate URL' }));
-    throw new Error(err.error || `Server error (${res.status})`);
-  }
-}
-
-export async function getUserURLs(token: string): Promise<URLStats[]> {
-  if (!token || !token.trim()) return [];
-
-  const res = await fetch(`${API_BASE_URL}/user/urls`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token.trim()}`,
-      'Accept': 'application/json',
-    },
-  });
-
-  if (!res.ok) {
-    if (res.status === 401) {
-      // Stale or expired token
-      throw new Error('Session expired. Please sign in again.');
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('You do not have permission to delete this link.');
     }
-    const err = await res.json().catch(() => ({ error: 'Failed to fetch user links' }));
-    throw new Error(err.error || `Server error (${res.status})`);
+    const err = await res.json().catch(() => ({ error: 'Failed to delete URL' }));
+    throw new Error(err.error || 'Failed to delete URL');
   }
-
-  return res.json();
 }

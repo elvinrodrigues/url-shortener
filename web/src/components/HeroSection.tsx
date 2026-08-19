@@ -1,55 +1,60 @@
 import React, { useState } from 'react';
-import { Typewriter } from './Typewriter.tsx';
-import { DateTimePickerModal } from './DateTimePickerModal.tsx';
 import {
   Link2,
   ArrowRight,
+  Loader2,
   Copy,
   Check,
   QrCode,
-  Calendar,
-  AlertCircle,
   BarChart3,
-  Loader2,
-  ClipboardPaste,
-  Clock,
   ExternalLink,
   ChevronDown,
   ChevronUp,
-  X,
+  Clock,
+  Calendar,
+  AlertCircle,
+  ClipboardPaste,
   Sparkles,
+  X,
 } from 'lucide-react';
-import { shortenURL, API_BASE_URL, type CreateURLResponse } from '../api.ts';
+import { shortenURL, getShortHost, type CreateURLResponse } from '../api.ts';
+import { Typewriter } from './Typewriter.tsx';
+import { DateTimePickerModal } from './DateTimePickerModal.tsx';
 
 interface HeroSectionProps {
   token: string;
   onShortenSuccess: (res: CreateURLResponse, originalUrl: string, expiresAt?: string) => void;
-  onViewStats: (code: string) => void;
-  onOpenQR: (url: string, code: string) => void;
   onShowToast: (title: string, message?: string, type?: 'success' | 'error' | 'info') => void;
+  onOpenQR: (url: string, code: string) => void;
+  onViewStats: (code: string) => void;
   onOpenAuth: () => void;
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
   token,
   onShortenSuccess,
-  onViewStats,
-  onOpenQR,
   onShowToast,
+  onOpenQR,
+  onViewStats,
   onOpenAuth,
 }) => {
   const [url, setUrl] = useState('');
   const [customAlias, setCustomAlias] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
-  const [dateModalOpen, setDateModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ res: CreateURLResponse; originalUrl: string; expiresAt?: string } | null>(null);
-  const [showAuthPrompt, setShowAuthPrompt] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [result, setResult] = useState<{
+    res: CreateURLResponse;
+    originalUrl: string;
+    expiresAt?: string;
+  } | null>(null);
+  const [dateModalOpen, setDateModalOpen] = useState(false);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
 
-  const displayHost = API_BASE_URL.replace(/^https?:\/\//, '') + '/';
+  const displayHost = getShortHost();
 
   const handlePasteClipboard = async () => {
     try {
@@ -136,53 +141,47 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
   return (
     <section
-      id="shortener"
       style={{
         position: 'relative',
-        paddingTop: '6.5rem',
-        paddingBottom: '2.5rem',
+        padding: '7.5rem 1.25rem 3rem',
+        maxWidth: '820px',
+        margin: '0 auto',
         textAlign: 'center',
       }}
     >
-      {/* Pure Crisp White Ambient Spotlight Glow */}
+      {/* Background radial spotlight */}
       <div
         style={{
           position: 'absolute',
-          top: '-12%',
+          top: '20%',
           left: '50%',
           transform: 'translateX(-50%)',
-          width: '820px',
-          height: '520px',
-          background: 'radial-gradient(ellipse at center, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.03) 45%, transparent 70%)',
-          filter: 'blur(80px)',
+          width: '750px',
+          height: '420px',
+          background: 'var(--spotlight-glow)',
+          filter: 'blur(70px)',
           pointerEvents: 'none',
           zIndex: 0,
         }}
       />
 
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 1,
-          maxWidth: '740px',
-          margin: '0 auto',
-          padding: '0 1.25rem',
-        }}
-      >
-        {/* Main Headline with Typewriter */}
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        {/* Main Hero Title */}
         <h1
           className="font-display"
           style={{
-            fontSize: 'clamp(2.2rem, 5vw, 3.6rem)',
+            fontSize: 'clamp(2rem, 4.8vw, 3.6rem)',
             fontWeight: 800,
             lineHeight: 1.15,
             letterSpacing: '-0.03em',
-            color: '#FFFFFF',
-            marginBottom: '0.85rem',
+            marginBottom: '1rem',
+            color: 'var(--text-title)',
           }}
         >
           Make your links <br />
-          short, smart & <Typewriter />
+          <span style={{ whiteSpace: 'nowrap', display: 'inline-block' }}>
+            short, smart & <Typewriter />
+          </span>
         </h1>
 
         {/* Subtitle */}
@@ -198,18 +197,22 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           Turn long, messy URLs into neat short links with live click tracking and instant QR codes.
         </p>
 
-        {/* Pure White Glowing Pill Input Form */}
+        {/* Glowing Pill Input Form */}
         <div
           style={{
             position: 'relative',
             borderRadius: '9999px',
-            backgroundColor: '#08080A',
-            border: '1px solid rgba(255, 255, 255, 0.22)',
-            boxShadow: '0 0 40px rgba(255, 255, 255, 0.16), 0 8px 24px rgba(0, 0, 0, 0.7)',
+            backgroundColor: 'var(--bg-input)',
+            border: isInputFocused ? '1px solid rgba(255, 90, 0, 0.45)' : '1px solid var(--border-subtle)',
+            boxShadow: isInputFocused
+              ? '0 0 55px rgba(255, 90, 0, 0.35), 0 0 20px rgba(255, 90, 0, 0.18), 0 8px 24px rgba(0, 0, 0, 0.7)'
+              : 'var(--input-shadow)',
             padding: '5px 6px 5px 18px',
             display: 'flex',
             alignItems: 'center',
             backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            transition: 'box-shadow 0.25s ease, border-color 0.25s ease',
           }}
         >
           <form
@@ -221,20 +224,22 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               gap: '0.5rem',
             }}
           >
-            <Link2 size={17} color="#FFFFFF" style={{ flexShrink: 0, opacity: 0.8 }} />
+            <Link2 size={17} color="#FF5A00" style={{ flexShrink: 0, opacity: 0.9 }} />
 
             <input
               type="text"
               required
               value={url}
               onChange={(e) => setUrl(e.target.value)}
+              onFocus={() => setIsInputFocused(true)}
+              onBlur={() => setIsInputFocused(false)}
               placeholder="https://example.com/long-url"
               style={{
                 flex: 1,
                 background: 'transparent',
                 border: 'none',
                 outline: 'none',
-                color: '#FFFFFF',
+                color: 'var(--text-main)',
                 fontSize: '0.92rem',
                 fontFamily: 'inherit',
                 padding: '0.45rem 0.25rem',
@@ -258,7 +263,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 fontWeight: 600,
                 transition: 'color 0.15s ease',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#FFFFFF')}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-title)')}
               onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-dim)')}
               title="Paste from clipboard"
             >
@@ -382,6 +387,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               flexDirection: 'column',
               gap: '0.85rem',
               animation: 'fadeSlideIn 0.15s ease forwards',
+              boxShadow: 'var(--card-shadow)',
             }}
           >
             {/* Custom Alias */}
@@ -490,9 +496,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 gap: '0.75rem',
                 padding: '0.35rem 0.45rem 0.35rem 1.15rem',
                 backgroundColor: 'var(--bg-card)',
-                border: '1px solid rgba(255, 255, 255, 0.22)',
+                border: '1px solid var(--border-hover)',
                 borderRadius: '9999px',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5), 0 0 25px rgba(255, 255, 255, 0.15)',
+                boxShadow: 'var(--card-shadow)',
                 animation: 'fadeSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',
               }}
             >
@@ -533,7 +539,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     borderRadius: '6px',
                     transition: 'all 0.15s ease',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#FFFFFF')}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-title)')}
                   onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
                   title="Inspect Analytics"
                 >
@@ -555,7 +561,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     alignItems: 'center',
                     transition: 'all 0.15s ease',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = '#FFFFFF')}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-title)')}
                   onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
                   title="QR Code"
                 >
@@ -586,8 +592,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   alignItems: 'center',
                   gap: '0.65rem',
                   padding: '0.4rem 0.65rem 0.4rem 0.95rem',
-                  backgroundColor: 'rgba(255, 90, 0, 0.08)',
-                  border: '1px solid rgba(255, 90, 0, 0.25)',
+                  backgroundColor: 'var(--badge-orange-bg)',
+                  border: '1px solid var(--badge-orange-border)',
                   borderRadius: '9999px',
                   fontSize: '0.76rem',
                   color: 'var(--text-main)',
