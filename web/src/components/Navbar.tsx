@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Moon, Sun, Menu, X, LayoutDashboard, Link2, Key, Lock } from 'lucide-react';
 import { type User } from '../api.ts';
 
@@ -25,6 +25,33 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Tab indicator tracking for ultra-smooth sliding animation
+  const shortenTabRef = useRef<HTMLButtonElement>(null);
+  const dashboardTabRef = useRef<HTMLButtonElement>(null);
+  const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number; opacity: number }>({
+    left: 3,
+    width: 80,
+    opacity: 0,
+  });
+
+  useEffect(() => {
+    const updateIndicator = () => {
+      const activeEl = currentView === 'home' ? shortenTabRef.current : dashboardTabRef.current;
+      if (activeEl) {
+        setIndicatorStyle({
+          left: activeEl.offsetLeft,
+          width: activeEl.offsetWidth,
+          opacity: 1,
+        });
+      }
+    };
+
+    updateIndicator();
+    // Re-measure on window resize
+    window.addEventListener('resize', updateIndicator);
+    return () => window.removeEventListener('resize', updateIndicator);
+  }, [currentView, token]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -193,11 +220,33 @@ export const Navbar: React.FC<NavbarProps> = ({
               borderRadius: '9999px',
               padding: '3px',
               border: '1px solid var(--border-subtle)',
+              overflow: 'hidden',
             }}
             className="desktop-nav"
           >
+            {/* Ultra-Smooth Animated Sliding Pill Indicator */}
+            <div
+              style={{
+                position: 'absolute',
+                top: '3px',
+                bottom: '3px',
+                left: 0,
+                transform: `translateX(${indicatorStyle.left}px)`,
+                width: `${indicatorStyle.width}px`,
+                opacity: indicatorStyle.opacity,
+                backgroundColor: 'var(--dock-active-bg)',
+                border: '1px solid var(--dock-active-border)',
+                borderRadius: '9999px',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.25)',
+                transition: 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), width 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease',
+                zIndex: 1,
+                pointerEvents: 'none',
+              }}
+            />
+
             {/* Sliding Pill Tab 1: Shorten */}
             <button
+              ref={shortenTabRef}
               type="button"
               onClick={() => onSelectView('home')}
               style={{
@@ -206,12 +255,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                 fontSize: '12px',
                 fontWeight: currentView === 'home' ? 700 : 500,
                 color: currentView === 'home' ? 'var(--text-title)' : 'var(--text-muted)',
-                backgroundColor: currentView === 'home' ? 'var(--dock-active-bg)' : 'transparent',
-                border: currentView === 'home' ? '1px solid var(--dock-active-border)' : '1px solid transparent',
+                background: 'transparent',
+                border: 'none',
                 borderRadius: '9999px',
-                padding: '4px 12px',
+                padding: '4px 13px',
                 cursor: 'pointer',
-                transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                transition: 'color 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '5px',
@@ -223,6 +272,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Sliding Pill Tab 2: Dashboard */}
             <button
+              ref={dashboardTabRef}
               type="button"
               onClick={handleDashboardNav}
               style={{
@@ -231,12 +281,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                 fontSize: '12px',
                 fontWeight: currentView === 'links' ? 700 : 500,
                 color: currentView === 'links' ? 'var(--text-title)' : 'var(--text-muted)',
-                backgroundColor: currentView === 'links' ? 'var(--dock-active-bg)' : 'transparent',
-                border: currentView === 'links' ? '1px solid var(--dock-active-border)' : '1px solid transparent',
+                background: 'transparent',
+                border: 'none',
                 borderRadius: '9999px',
-                padding: '4px 12px',
+                padding: '4px 13px',
                 cursor: 'pointer',
-                transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                transition: 'color 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '5px',
