@@ -12,6 +12,7 @@ import {
   Check,
   ExternalLink,
   Link2,
+  Sparkles,
 } from 'lucide-react';
 import { getStats, getShortUrl, type URLStats } from '../api.ts';
 
@@ -350,6 +351,41 @@ export const StatsModal: React.FC<StatsModalProps> = ({
                 </a>
               </div>
             </div>
+
+            {/* Guest Hint */}
+            {!token && (
+              <div
+                style={{
+                  backgroundColor: 'var(--badge-orange-bg)',
+                  border: '1px solid var(--badge-orange-border)',
+                  borderRadius: '10px',
+                  padding: '0.75rem 1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '0.75rem',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '11.5px', color: 'var(--text-main)', flex: '1 1 200px' }}>
+                  <Sparkles size={14} color="#FF5A00" style={{ flexShrink: 0 }} />
+                  <span>
+                    Sign in to extend link expiration times, unlock detailed historical analytics, and manage all your links in one place.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenAuth();
+                  }}
+                  className="btn-pill-primary"
+                  style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}
+                >
+                  Sign In
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

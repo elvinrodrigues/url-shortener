@@ -1,7 +1,7 @@
 {
   "name": "Slug — High-Performance Go URL Shortener",
   "short_name": "Slug",
-  "description": "Fast, reliable URL shortener with sub-millisecond Redis caching, live analytics, and custom aliases. Built with Go 1.22, PostgreSQL, and Redis.",
+  "description": "Fast, reliable URL shortener with sub-millisecond Redis caching, live analytics, and custom aliases. Built with Go 1.26+, PostgreSQL, and Redis.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",

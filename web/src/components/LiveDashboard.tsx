@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Link2, ArrowRight, UserCheck, Lock } from 'lucide-react';
+import { Search, Link2, ArrowRight, UserCheck, Lock, Sparkles } from 'lucide-react';
 import { LinkCard, type LinkItemData } from './LinkCard.tsx';
 import { deleteURL, type User } from '../api.ts';
 
@@ -63,6 +63,51 @@ export const LiveDashboard: React.FC<LiveDashboardProps> = ({
 
   return (
     <section id="dashboard" className="dashboard-section" style={{ padding: '0.5rem 1.25rem 3.5rem', maxWidth: '760px', margin: '0 auto' }}>
+      {/* Guest Mode Informational Banner */}
+      {!token && (
+        <div
+          className="dashboard-guest-banner"
+          style={{
+            marginBottom: '1rem',
+            padding: '0.65rem 0.95rem',
+            borderRadius: '12px',
+            backgroundColor: 'var(--badge-orange-bg)',
+            border: '1px solid var(--badge-orange-border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.65rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flex: '1 1 260px' }}>
+            <Sparkles size={14} color="#FF5A00" style={{ flexShrink: 0 }} />
+            <div style={{ fontSize: '11.5px', color: 'var(--text-main)', lineHeight: 1.4 }}>
+              <span style={{ fontWeight: 700, color: '#FF5A00' }}>Guest Mode: </span>
+              <span style={{ color: 'var(--text-muted)' }}>
+                Links expire after 30 days. Sign in to extend expiration times, unlock detailed analytics, and sync links.
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onOpenAuth}
+            className="btn-pill-primary"
+            style={{
+              padding: '4px 10px',
+              fontSize: '11px',
+              fontWeight: 700,
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+            }}
+          >
+            <span>Sign In</span>
+            <ArrowRight size={11} />
+          </button>
+        </div>
+      )}
+
       {/* Header Bar */}
       <div
         className="dashboard-header-bar"
@@ -186,8 +231,10 @@ export const LiveDashboard: React.FC<LiveDashboardProps> = ({
             <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', margin: '0 0 0.25rem' }}>
               No links yet
             </p>
-            <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0 }}>
-              Paste a URL above to create your first short link.
+            <p style={{ fontSize: '11px', color: 'var(--text-dim)', margin: 0, maxWidth: '420px', marginInline: 'auto' }}>
+              {!token
+                ? 'Paste a URL above to create your short link. Sign in to access live click analytics and extend expiration.'
+                : 'Paste a URL above to create your first short link.'}
             </p>
           </div>
         ) : (

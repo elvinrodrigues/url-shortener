@@ -16,6 +16,8 @@ import {
   ClipboardPaste,
   Sparkles,
   X,
+  Zap,
+  ShieldCheck,
 } from 'lucide-react';
 import { shortenURL, getShortHost, type CreateURLResponse } from '../api.ts';
 import { Typewriter } from './Typewriter.tsx';
@@ -113,6 +115,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       setShowAuthPrompt(true);
       onShortenSuccess(res, validUrl, payload.expires_at);
       onShowToast('Short link created', res.short_url, 'success');
+
+      // Clear input fields so user can immediately paste/type another URL
+      setUrl('');
+      setCustomAlias('');
+      setExpiresAt('');
+      setShowAdvanced(false);
     } catch (err: any) {
       setError(err.message || 'Failed to shorten URL');
       onShowToast('Shortening failed', err.message, 'error');
@@ -167,13 +175,36 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       />
 
       <div style={{ position: 'relative', zIndex: 1 }}>
+        {/* Top Feature Pill Badge */}
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 14px',
+            borderRadius: '9999px',
+            backgroundColor: 'var(--badge-orange-bg)',
+            border: '1px solid var(--badge-orange-border)',
+            fontSize: '12px',
+            fontWeight: 700,
+            color: 'var(--badge-orange-text)',
+            marginBottom: '1.25rem',
+            boxShadow: '0 2px 14px rgba(255, 90, 0, 0.12)',
+            letterSpacing: '0.02em',
+            animation: 'fadeSlideIn 0.3s ease forwards',
+          }}
+        >
+          <Sparkles size={13} color="#FF5A00" />
+          <span>High-Performance Link Engine • Sub-millisecond Redis Caching</span>
+        </div>
+
         {/* Main Hero Title */}
         <h1
           className="font-display hero-title"
           style={{
-            fontSize: 'clamp(1.85rem, 5.5vw, 3.6rem)',
+            fontSize: 'clamp(1.95rem, 5.8vw, 3.8rem)',
             fontWeight: 800,
-            lineHeight: 1.18,
+            lineHeight: 1.16,
             letterSpacing: '-0.03em',
             marginBottom: '0.85rem',
             color: 'var(--text-title)',
@@ -189,14 +220,14 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         <p
           className="hero-subtitle"
           style={{
-            fontSize: 'clamp(0.88rem, 3.5vw, 1rem)',
+            fontSize: 'clamp(0.88rem, 3.5vw, 1.02rem)',
             color: 'var(--text-muted)',
-            maxWidth: 'min(90vw, 500px)',
-            margin: '0 auto 1.75rem',
-            lineHeight: 1.5,
+            maxWidth: 'min(90vw, 520px)',
+            margin: '0 auto 1.85rem',
+            lineHeight: 1.55,
           }}
         >
-          Turn long, messy URLs into neat short links with live click tracking and instant QR codes.
+          Transform long, cluttered URLs into clean short links with instant redirection, live telemetry, and customizable QR codes.
         </p>
 
         {/* Glowing Pill Input Form (Transforms to mobile card on <520px) */}
@@ -456,6 +487,31 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 </div>
                 <span style={{ fontSize: '11px', color: '#FF5A00', fontWeight: 600 }}>Set</span>
               </button>
+
+              {!token && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: 'var(--text-dim)' }}>
+                  <Sparkles size={11} color="#FF5A00" style={{ flexShrink: 0 }} />
+                  <span>
+                    Guest links expire in 30 days max.{' '}
+                    <button
+                      type="button"
+                      onClick={onOpenAuth}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#FF5A00',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        fontSize: '0.74rem',
+                        padding: 0,
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      Sign in to extend time & get analytics
+                    </button>
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -607,7 +663,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <Sparkles size={12} color="#FF5A00" style={{ flexShrink: 0 }} />
-                  <span>Sign in to manage URLs and view analytics</span>
+                  <span>Link saved! Sign in to extend expiration, track analytics & sync.</span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
@@ -652,6 +708,98 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             )}
           </div>
         )}
+
+        {/* Feature Highlights Bar */}
+        <div
+          style={{
+            marginTop: '2.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+            gap: '0.65rem',
+          }}
+        >
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '9999px',
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
+              fontSize: '11.5px',
+              color: 'var(--text-muted)',
+              boxShadow: 'var(--card-shadow)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+            }}
+          >
+            <Zap size={13} color="#FF5A00" />
+            <span><strong style={{ color: 'var(--text-main)' }}>&lt;1ms</strong> Redis Latency</span>
+          </div>
+
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '9999px',
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
+              fontSize: '11.5px',
+              color: 'var(--text-muted)',
+              boxShadow: 'var(--card-shadow)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+            }}
+          >
+            <BarChart3 size={13} color="#FF5A00" />
+            <span><strong style={{ color: 'var(--text-main)' }}>Live</strong> Click Telemetry</span>
+          </div>
+
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '9999px',
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
+              fontSize: '11.5px',
+              color: 'var(--text-muted)',
+              boxShadow: 'var(--card-shadow)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+            }}
+          >
+            <QrCode size={13} color="#FF5A00" />
+            <span><strong style={{ color: 'var(--text-main)' }}>Dynamic</strong> QR Codes</span>
+          </div>
+
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '9999px',
+              backgroundColor: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
+              fontSize: '11.5px',
+              color: 'var(--text-muted)',
+              boxShadow: 'var(--card-shadow)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+            }}
+          >
+            <ShieldCheck size={13} color="#FF5A00" />
+            <span><strong style={{ color: 'var(--text-main)' }}>Custom</strong> Expiration & Sync</span>
+          </div>
+        </div>
       </div>
 
       {/* Date Time Picker Modal */}

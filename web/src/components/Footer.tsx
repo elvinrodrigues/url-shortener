@@ -31,7 +31,7 @@ export const Footer: React.FC<FooterProps> = () => {
 
       <div className="footer-links" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
         <span className="font-mono" style={{ fontSize: '11px' }}>
-          Go 1.26 • PostgreSQL • Redis
+          Go 1.26+ • PostgreSQL • Redis
         </span>
         <a
           href="https://github.com/elvinrodrigues/url-shortener"

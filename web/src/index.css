@@ -33,23 +33,25 @@
   --dock-shadow: 0 8px 24px rgba(0, 0, 0, 0.06), 0 2px 6px rgba(0, 0, 0, 0.02);
   --input-shadow: 0 0 35px rgba(255, 90, 0, 0.18), 0 0 12px rgba(255, 90, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
   --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.03);
-  --spotlight-glow: radial-gradient(ellipse at center, rgba(255, 90, 0, 0.12) 0%, rgba(255, 140, 0, 0.03) 50%, transparent 70%);
+  --spotlight-glow: radial-gradient(ellipse at center, rgba(255, 90, 0, 0.14) 0%, rgba(255, 140, 0, 0.04) 50%, transparent 70%);
 
   --badge-orange-bg: rgba(255, 90, 0, 0.08);
-  --badge-orange-border: rgba(255, 90, 0, 0.3);
+  --badge-orange-border: rgba(255, 90, 0, 0.28);
   --badge-orange-text: #E04F00;
+  
+  --bg-grid-color: rgba(0, 0, 0, 0.035);
 }
 
 html.dark {
-  /* Dark Theme: Pitch Black + Bottom-Directional Ember Orange Dock Glow */
-  --bg-page: #000000;
-  --bg-surface: #0A0A0C;
-  --bg-card: #0F0F12;
-  --bg-card-hover: #16161B;
-  --bg-input: #08080A;
-  --bg-modal: #0F0F12;
-  --bg-dock: rgba(15, 15, 18, 0.92);
-  --bg-dock-scrolled: rgba(15, 15, 18, 0.98);
+  /* Dark Theme: Pitch Black / Onyx + Bottom-Directional Ember Orange Glow */
+  --bg-page: #08080A;
+  --bg-surface: #0E0E12;
+  --bg-card: #121216;
+  --bg-card-hover: #18181F;
+  --bg-input: #0A0A0E;
+  --bg-modal: #121216;
+  --bg-dock: rgba(18, 18, 22, 0.9);
+  --bg-dock-scrolled: rgba(18, 18, 22, 0.98);
 
   --text-main: #EDEDED;
   --text-title: #FFFFFF;
@@ -62,14 +64,16 @@ html.dark {
 
   --dock-active-bg: rgba(255, 255, 255, 0.16);
   --dock-active-border: rgba(255, 255, 255, 0.28);
-  --dock-shadow: 0 14px 34px rgba(0, 0, 0, 0.8), 0 8px 18px rgba(255, 90, 0, 0.12);
-  --input-shadow: 0 0 45px rgba(255, 90, 0, 0.26), 0 0 16px rgba(255, 90, 0, 0.14), 0 8px 24px rgba(0, 0, 0, 0.7);
-  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  --spotlight-glow: radial-gradient(ellipse at center, rgba(255, 90, 0, 0.16) 0%, rgba(255, 140, 0, 0.04) 45%, transparent 70%);
+  --dock-shadow: 0 14px 34px rgba(0, 0, 0, 0.8), 0 8px 18px rgba(255, 90, 0, 0.14);
+  --input-shadow: 0 0 50px rgba(255, 90, 0, 0.25), 0 0 18px rgba(255, 90, 0, 0.14), 0 8px 24px rgba(0, 0, 0, 0.7);
+  --card-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+  --spotlight-glow: radial-gradient(ellipse at center, rgba(255, 90, 0, 0.2) 0%, rgba(255, 140, 0, 0.05) 50%, transparent 75%);
 
   --badge-orange-bg: rgba(255, 90, 0, 0.12);
   --badge-orange-border: rgba(255, 90, 0, 0.28);
   --badge-orange-text: #FF5A00;
+  
+  --bg-grid-color: rgba(255, 255, 255, 0.035);
 }
 
 *, *::before, *::after {
@@ -99,6 +103,8 @@ body {
   min-height: 100vh;
   line-height: 1.5;
   background-color: var(--bg-page);
+  background-image: radial-gradient(var(--bg-grid-color) 1px, transparent 1px);
+  background-size: 28px 28px;
   color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -120,6 +126,12 @@ body {
 
 .font-mono {
   font-family: 'JetBrains Mono', monospace;
+}
+
+/* Glass panel style */
+.glass-panel {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 /* Primary Orange Button */
@@ -387,8 +399,16 @@ body {
     border-radius: 12px !important;
   }
 
+  .link-card-right {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+
+  .link-card-meta {
+    gap: 0.5rem !important;
+  }
+
   .link-card-actions {
-    width: 100%;
     justify-content: flex-end;
     gap: 5px !important;
   }

@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { X, Download, Copy, Check, ExternalLink, QrCode as QrIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Download, Copy, Check, ExternalLink, QrCode as QrIcon, Loader2 } from 'lucide-react';
+import QRCode from 'qrcode';
 
 interface QRCodeModalProps {
   url?: string;
@@ -21,9 +22,57 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
   onCopy,
 }) => {
   const [copied, setCopied] = useState(false);
-  const svgRef = useRef<SVGSVGElement | null>(null);
+  const [svgMarkup, setSvgMarkup] = useState<string>('');
+  const [pngDataUrl, setPngDataUrl] = useState<string>('');
+  const [loading, setLoading] = useState(true);
 
   const targetUrl = url || shortUrl || '';
+
+  useEffect(() => {
+    if (!isOpen || !targetUrl) return;
+
+    let isMounted = true;
+    setLoading(true);
+
+    const generate = async () => {
+      try {
+        const [svg, dataUrl] = await Promise.all([
+          QRCode.toString(targetUrl, {
+            type: 'svg',
+            margin: 2,
+            errorCorrectionLevel: 'M',
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF',
+            },
+          }),
+          QRCode.toDataURL(targetUrl, {
+            width: 800,
+            margin: 2,
+            errorCorrectionLevel: 'H',
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF',
+            },
+          }),
+        ]);
+
+        if (isMounted) {
+          setSvgMarkup(svg);
+          setPngDataUrl(dataUrl);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    generate();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, targetUrl]);
 
   if (!isOpen) return null;
 
@@ -36,30 +85,12 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
   };
 
   const handleDownload = () => {
-    const svg = svgRef.current;
-    if (!svg) return;
-
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement('canvas');
-    canvas.width = 600;
-    canvas.height = 600;
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-
-    img.onload = () => {
-      if (!ctx) return;
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, 600, 600);
-      ctx.drawImage(img, 0, 0, 600, 600);
-      const pngUrl = canvas.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.download = `qr-${shortCode}.png`;
-      a.href = pngUrl;
-      a.click();
-      if (onShowToast) onShowToast('Downloaded QR Code', `Saved qr-${shortCode}.png`, 'success');
-    };
-
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    if (!pngDataUrl) return;
+    const a = document.createElement('a');
+    a.download = `qr-${shortCode || 'link'}.png`;
+    a.href = pngDataUrl;
+    a.click();
+    if (onShowToast) onShowToast('Downloaded QR Code', `Saved qr-${shortCode || 'link'}.png`, 'success');
   };
 
   return (
@@ -135,101 +166,45 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
         <div
           style={{
             backgroundColor: '#FFFFFF',
-            padding: '1.25rem',
-            borderRadius: '1rem',
+            padding: '1.15rem',
+            borderRadius: '1.25rem',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.15)',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.18)',
             marginBottom: '1.25rem',
             border: '1px solid rgba(0, 0, 0, 0.08)',
+            width: '230px',
+            height: '230px',
+            position: 'relative',
+            overflow: 'hidden',
           }}
         >
-          <svg
-            ref={svgRef}
-            width="200"
-            height="200"
-            viewBox="0 0 200 200"
-            style={{ display: 'block' }}
-          >
-            {/* Background */}
-            <rect width="200" height="200" fill="#FFFFFF" rx="8" />
-
-            {/* Top Left Finder */}
-            <rect x="20" y="20" width="45" height="45" fill="#0F0F12" rx="4" />
-            <rect x="27" y="27" width="31" height="31" fill="#FFFFFF" rx="2" />
-            <rect x="34" y="34" width="17" height="17" fill="#FF5A00" rx="2" />
-
-            {/* Top Right Finder */}
-            <rect x="135" y="20" width="45" height="45" fill="#0F0F12" rx="4" />
-            <rect x="142" y="27" width="31" height="31" fill="#FFFFFF" rx="2" />
-            <rect x="149" y="34" width="17" height="17" fill="#FF5A00" rx="2" />
-
-            {/* Bottom Left Finder */}
-            <rect x="20" y="135" width="45" height="45" fill="#0F0F12" rx="4" />
-            <rect x="27" y="142" width="31" height="31" fill="#FFFFFF" rx="2" />
-            <rect x="34" y="149" width="17" height="17" fill="#FF5A00" rx="2" />
-
-            {/* Decorative Data Dots Matrix */}
-            <rect x="75" y="25" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="90" y="25" width="8" height="8" fill="#FF5A00" rx="1.5" />
-            <rect x="105" y="25" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="120" y="25" width="8" height="8" fill="#0F0F12" rx="1.5" />
-
-            <rect x="75" y="40" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="105" y="40" width="8" height="8" fill="#FF5A00" rx="1.5" />
-            <rect x="120" y="40" width="8" height="8" fill="#0F0F12" rx="1.5" />
-
-            <rect x="75" y="55" width="8" height="8" fill="#FF5A00" rx="1.5" />
-            <rect x="90" y="55" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="120" y="55" width="8" height="8" fill="#0F0F12" rx="1.5" />
-
-            <rect x="25" y="75" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="40" y="75" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="55" y="75" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="75" y="75" width="8" height="8" fill="#FF5A00" rx="1.5" />
-            <rect x="90" y="75" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="105" y="75" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="120" y="75" width="8" height="8" fill="#FF5A00" rx="1.5" />
-            <rect x="140" y="75" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="155" y="75" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="170" y="75" width="8" height="8" fill="#0F0F12" rx="1.5" />
-
-            <rect x="25" y="90" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="55" y="90" width="8" height="8" fill="#FF5A00" rx="1.5" />
-            <rect x="75" y="90" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="90" y="90" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="105" y="90" width="8" height="8" fill="#FF5A00" rx="1.5" />
-            <rect x="140" y="90" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="170" y="90" width="8" height="8" fill="#0F0F12" rx="1.5" />
-
-            <rect x="25" y="105" width="8" height="8" fill="#FF5A00" rx="1.5" />
-            <rect x="40" y="105" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="75" y="105" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="105" y="105" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="120" y="105" width="8" height="8" fill="#FF5A00" rx="1.5" />
-            <rect x="155" y="105" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="170" y="105" width="8" height="8" fill="#0F0F12" rx="1.5" />
-
-            <rect x="75" y="135" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="90" y="135" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="105" y="135" width="8" height="8" fill="#FF5A00" rx="1.5" />
-            <rect x="120" y="135" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="140" y="135" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="155" y="135" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="170" y="135" width="8" height="8" fill="#FF5A00" rx="1.5" />
-
-            <rect x="75" y="150" width="8" height="8" fill="#FF5A00" rx="1.5" />
-            <rect x="105" y="150" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="140" y="150" width="8" height="8" fill="#FF5A00" rx="1.5" />
-            <rect x="170" y="150" width="8" height="8" fill="#0F0F12" rx="1.5" />
-
-            <rect x="75" y="165" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="90" y="165" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="105" y="165" width="8" height="8" fill="#0F0F12" rx="1.5" />
-            <rect x="120" y="165" width="8" height="8" fill="#FF5A00" rx="1.5" />
-            <rect x="155" y="165" width="8" height="8" fill="#0F0F12" rx="1.5" />
-          </svg>
+          {loading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', color: '#64748B' }}>
+              <Loader2 size={26} className="spinner" color="#FF5A00" />
+              <span style={{ fontSize: '11px', fontWeight: 600 }}>Generating QR...</span>
+            </div>
+          ) : svgMarkup ? (
+            <div
+              dangerouslySetInnerHTML={{ __html: svgMarkup }}
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            />
+          ) : pngDataUrl ? (
+            <img
+              src={pngDataUrl}
+              alt={`QR Code for ${targetUrl}`}
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
+          ) : (
+            <span style={{ fontSize: '12px', color: '#EF4444' }}>Failed to generate QR code</span>
+          )}
         </div>
 
         {/* Short Link URL Pill */}

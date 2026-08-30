@@ -223,10 +223,10 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
 	badgeClass := "badge-error"
 	title := "Destination unreachable"
 	desc := "The short link you are attempting to visit does not exist, was mistyped, or has been removed."
-	iconColor := "#ff4757"
-	iconBg := "rgba(255, 71, 87, 0.1)"
-	iconBorder := "rgba(255, 71, 87, 0.25)"
-	iconShadow := "0 0 24px -2px rgba(255, 71, 87, 0.25)"
+	iconColor := "#FF5A00"
+	iconBg := "rgba(255, 90, 0, 0.1)"
+	iconBorder := "rgba(255, 90, 0, 0.25)"
+	iconShadow := "0 0 28px -2px rgba(255, 90, 0, 0.3)"
 	iconSVG := `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18.84 12.25 1.72-1.71a4.5 4.5 0 0 0-6.36-6.37l-1.72 1.71"/><path d="m5.17 11.75-1.71 1.71a4.5 4.5 0 0 0 6.36 6.37l1.71-1.72"/><line x1="2" x2="22" y1="2" y2="22"/></svg>`
 
 	if isExpired {
@@ -234,10 +234,10 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
 		badgeClass = "badge-warning"
 		title = "This link has expired"
 		desc = "This short link has reached its scheduled expiration date and is no longer redirecting."
-		iconColor = "#fcbb00"
-		iconBg = "rgba(252, 187, 0, 0.1)"
-		iconBorder = "rgba(252, 187, 0, 0.25)"
-		iconShadow = "0 0 24px -2px rgba(252, 187, 0, 0.25)"
+		iconColor = "#F59E0B"
+		iconBg = "rgba(245, 158, 11, 0.1)"
+		iconBorder = "rgba(245, 158, 11, 0.25)"
+		iconShadow = "0 0 28px -2px rgba(245, 158, 11, 0.3)"
 		iconSVG = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`
 	}
 
@@ -249,19 +249,19 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
   <title>%s • Slug</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      background-color: #0a0a0b;
-      color: #f5f5f7;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #09090b;
+      color: #EDEDED;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 20px;
+      padding: 24px 20px;
       position: relative;
       overflow-x: hidden;
       line-height: 1.5;
@@ -274,8 +274,8 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
       left: 50%%;
       transform: translateX(-50%%);
       width: 100vw;
-      height: 500px;
-      background: radial-gradient(circle at 50%% 0%%, rgba(76, 126, 243, 0.18) 0%%, transparent 70%%);
+      height: 520px;
+      background: radial-gradient(circle at 50%% 0%%, rgba(255, 90, 0, 0.22) 0%%, rgba(255, 140, 0, 0.05) 50%%, transparent 75%%);
       pointer-events: none;
       z-index: 0;
     }
@@ -283,40 +283,46 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      padding: 8px 18px;
-      background: #131316;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 8px 20px;
+      background: rgba(18, 18, 22, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 9999px;
       margin-bottom: 32px;
       text-decoration: none;
-      color: #f5f5f7;
+      color: #FFFFFF;
       position: relative;
       z-index: 1;
-      font-family: 'Outfit', sans-serif;
-      font-weight: 700;
-      font-size: 1.05rem;
-      letter-spacing: -0.01em;
-      transition: all 0.2s ease;
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-weight: 800;
+      font-size: 1.1rem;
+      letter-spacing: -0.02em;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(255, 90, 0, 0.08);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      transition: all 0.25s ease;
     }
     .header-logo:hover {
-      border-color: rgba(255, 255, 255, 0.18);
-      background: #1a1a1e;
+      border-color: rgba(255, 90, 0, 0.4);
+      background: rgba(26, 26, 32, 0.95);
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 90, 0, 0.2);
+      transform: translateY(-1px);
     }
     .header-logo-badge {
       font-family: 'JetBrains Mono', monospace;
       font-size: 0.65rem;
-      padding: 2px 7px;
-      border-radius: 4px;
-      background: rgba(76, 126, 243, 0.12);
-      color: #5f8df5;
-      font-weight: 600;
-      letter-spacing: 0.05em;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      background: rgba(255, 90, 0, 0.12);
+      color: #FF5A00;
+      border: 1px solid rgba(255, 90, 0, 0.28);
+      font-weight: 700;
+      letter-spacing: 0.06em;
     }
     .card {
-      background: #131316;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 18px;
-      padding: 44px 32px 40px;
+      background: rgba(15, 15, 18, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 22px;
+      padding: 44px 34px 40px;
       text-align: center;
       max-width: 520px;
       width: 100%%;
@@ -326,17 +332,19 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
       gap: 16px;
       position: relative;
       z-index: 1;
-      box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.7), 0 0 30px rgba(255, 90, 0, 0.05);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
       animation: appear 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
     .card::before {
       content: '';
       position: absolute;
       top: 0;
-      left: 10%%;
-      right: 10%%;
+      left: 15%%;
+      right: 15%%;
       height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      background: linear-gradient(90deg, transparent, rgba(255, 90, 0, 0.4), rgba(255, 255, 255, 0.3), rgba(255, 90, 0, 0.4), transparent);
     }
     @keyframes appear {
       from { opacity: 0; transform: translateY(14px); }
@@ -359,58 +367,59 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 10px;
+      padding: 4px 12px;
       border-radius: 9999px;
       font-size: 0.725rem;
       font-family: 'JetBrains Mono', monospace;
-      font-weight: 600;
+      font-weight: 700;
       letter-spacing: 0.05em;
       text-transform: uppercase;
     }
-    .badge-error { background: rgba(255, 71, 87, 0.1); color: #ff4757; border: 1px solid rgba(255, 71, 87, 0.25); }
-    .badge-warning { background: rgba(252, 187, 0, 0.1); color: #fcbb00; border: 1px solid rgba(252, 187, 0, 0.25); }
+    .badge-error { background: rgba(255, 90, 0, 0.1); color: #FF5A00; border: 1px solid rgba(255, 90, 0, 0.3); }
+    .badge-warning { background: rgba(245, 158, 11, 0.1); color: #F59E0B; border: 1px solid rgba(245, 158, 11, 0.3); }
     .status-dot { width: 6px; height: 6px; border-radius: 50%%; background: currentColor; box-shadow: 0 0 6px currentColor; }
     h1 {
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.85rem;
-      font-weight: 700;
-      color: #f5f5f7;
-      letter-spacing: -0.02em;
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 1.95rem;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: -0.025em;
     }
     .slug-box {
       display: inline-flex;
       align-items: center;
       gap: 12px;
-      padding: 6px 14px;
-      background: #0f0f12;
+      padding: 7px 16px;
+      background: #08080a;
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
+      border-radius: 12px;
       margin: 2px 0;
     }
-    .slug-label { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: #636366; font-weight: 700; letter-spacing: 0.08em; }
-    .slug-val { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 600; color: #5f8df5; }
-    p { color: #8e8e93; font-size: 0.925rem; line-height: 1.6; max-width: 420px; }
+    .slug-label { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: #8E8E93; font-weight: 700; letter-spacing: 0.08em; }
+    .slug-val { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; font-weight: 700; color: #FF5A00; }
+    p { color: #8E8E93; font-size: 0.925rem; line-height: 1.6; max-width: 420px; }
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 11px 22px;
-      border-radius: 10px;
-      background: linear-gradient(135deg, #4c7ef3 0%%, #60a5fa 50%%, #818cf8 100%%);
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      color: #ffffff;
-      font-size: 0.825rem;
-      font-weight: 600;
+      padding: 12px 26px;
+      border-radius: 9999px;
+      background: linear-gradient(135deg, #FF4500 0%%, #FF5A00 50%%, #F59E0B 100%%);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #FFFFFF;
+      font-size: 0.85rem;
+      font-weight: 700;
       text-decoration: none;
       margin-top: 8px;
-      box-shadow: 0 4px 14px 0 rgba(76, 126, 243, 0.35);
+      box-shadow: 0 4px 18px 0 rgba(255, 90, 0, 0.38);
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 22px 0 rgba(76, 126, 243, 0.48);
-      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 6px 26px 0 rgba(255, 90, 0, 0.55);
+      border-color: rgba(255, 255, 255, 0.35);
+      filter: brightness(1.06);
     }
     .footer-note {
       margin-top: 40px;
@@ -427,7 +436,7 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
 </head>
 <body>
   <a href="/" class="header-logo">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4c7ef3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF5A00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
     <span>Slug</span>
     <span class="header-logo-badge">URL SHORTENER</span>
   </a>
@@ -442,17 +451,18 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
     </div>
     <p>%s</p>
     <a href="/" class="btn">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
       Shorten a New Link
     </a>
   </div>
 
   <div class="footer-note">
     <p>Don't shorten links to illegal, phishing, or harmful content.</p>
-    <p style="font-family: 'JetBrains Mono', monospace; font-size: 0.725rem; margin-top: 4px;">Elvin Rodrigues — Slug • Go 1.22+ • PostgreSQL 15 • Redis 7</p>
+    <p style="font-family: 'JetBrains Mono', monospace; font-size: 0.725rem; margin-top: 4px;">Elvin Rodrigues — Slug • Go 1.26+ • PostgreSQL • Redis</p>
   </div>
 </body>
 </html>`, title, iconColor, iconBg, iconBorder, iconShadow, iconSVG, badgeClass, badgeText, title, code, desc)
 
 	w.Write([]byte(html))
 }
+

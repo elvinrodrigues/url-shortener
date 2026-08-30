@@ -151,40 +151,46 @@ export const LinkCard: React.FC<LinkCardProps> = ({
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '0.65rem',
-          flexWrap: 'wrap',
+          gap: '0.85rem',
+          flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-          {/* Orange Click Count Pill */}
+        <div className="link-card-meta" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexShrink: 0 }}>
+          {/* Orange Click Count Pill (fixed width for perfect vertical alignment across rows) */}
           <div
             className="font-mono"
             style={{
               backgroundColor: 'rgba(255, 90, 0, 0.08)',
               border: '1px solid rgba(255, 90, 0, 0.35)',
               color: '#FF5A00',
-              padding: '3px 9px',
+              padding: '3px 0',
+              width: '84px',
               borderRadius: '9999px',
               fontSize: '11px',
               fontWeight: 700,
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '4px',
               whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
             <span>{link.click_count || 0}</span>
-            <span>clicks</span>
+            <span>{link.click_count === 1 ? 'click' : 'clicks'}</span>
           </div>
 
-          {/* Time Ago */}
+          {/* Time Ago (fixed width right-aligned for straight columns) */}
           <span
             className="font-mono"
             style={{
               fontSize: '11px',
               color: 'var(--text-dim)',
               whiteSpace: 'nowrap',
+              width: '58px',
+              textAlign: 'right',
+              display: 'inline-block',
+              flexShrink: 0,
             }}
           >
             {formatTimeAgo(link.created_at)}
@@ -192,7 +198,7 @@ export const LinkCard: React.FC<LinkCardProps> = ({
         </div>
 
         {/* 5 Distinct Action Button Icons */}
-        <div className="link-card-actions" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div className="link-card-actions" style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
           {/* 1. Copy Link */}
           <button
             type="button"
