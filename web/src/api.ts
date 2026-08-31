@@ -174,7 +174,7 @@ export async function getUserURLs(token: string): Promise<URLStats[]> {
 }
 
 export async function deleteURL(code: string, token: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/urls/${encodeURIComponent(code)}`, {
+  const res = await fetch(`${API_BASE_URL}/${encodeURIComponent(code)}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${token.trim()}`,
@@ -183,7 +183,8 @@ export async function deleteURL(code: string, token: string): Promise<void> {
 
   if (!res.ok) {
     if (res.status === 404) {
-      throw new Error(`Short code "/${code}" not found.`);
+      // Short code is already deleted or not in database
+      return;
     }
     if (res.status === 401 || res.status === 403) {
       throw new Error('You do not have permission to delete this link.');

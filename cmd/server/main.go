@@ -59,7 +59,7 @@ func main() {
 	// POST /shorten uses optional auth (attaches userID if token is sent)
 	mux.Handle("POST /shorten", rateLimiter(auth(http.HandlerFunc(h.Shorten))))
 
-	// DELETE /{code} uses AuthMiddleware THEN RequireAuth (enforces logged-in user)
+	// DELETE /{code} enforces logged-in user
 	mux.Handle("DELETE /{code}", auth(handler.RequireAuth(http.HandlerFunc(h.Delete))))
 
 	mux.Handle("GET /stats/{code}", auth(handler.RequireAuth(http.HandlerFunc(h.GetStats))))
