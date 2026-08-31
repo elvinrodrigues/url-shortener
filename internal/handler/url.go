@@ -227,6 +227,9 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
 	iconBg := "rgba(255, 90, 0, 0.1)"
 	iconBorder := "rgba(255, 90, 0, 0.25)"
 	iconShadow := "0 0 28px -2px rgba(255, 90, 0, 0.3)"
+	cardBorder := "rgba(255, 90, 0, 0.32)"
+	cardShadow := "0 0 50px -5px rgba(255, 90, 0, 0.24), 0 0 20px -2px rgba(255, 90, 0, 0.14), 0 24px 60px rgba(0, 0, 0, 0.85)"
+	cursorGradient := "radial-gradient(circle, rgba(255, 90, 0, 0.15) 0%, rgba(255, 140, 0, 0.05) 45%, transparent 75%)"
 	iconSVG := `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18.84 12.25 1.72-1.71a4.5 4.5 0 0 0-6.36-6.37l-1.72 1.71"/><path d="m5.17 11.75-1.71 1.71a4.5 4.5 0 0 0 6.36 6.37l1.71-1.72"/><line x1="2" x2="22" y1="2" y2="22"/></svg>`
 
 	if isExpired {
@@ -238,6 +241,9 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
 		iconBg = "rgba(245, 158, 11, 0.1)"
 		iconBorder = "rgba(245, 158, 11, 0.25)"
 		iconShadow = "0 0 28px -2px rgba(245, 158, 11, 0.3)"
+		cardBorder = "rgba(245, 158, 11, 0.32)"
+		cardShadow = "0 0 50px -5px rgba(245, 158, 11, 0.24), 0 0 20px -2px rgba(245, 158, 11, 0.14), 0 24px 60px rgba(0, 0, 0, 0.85)"
+		cursorGradient = "radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, rgba(245, 140, 0, 0.05) 45%, transparent 75%)"
 		iconSVG = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`
 	}
 
@@ -254,7 +260,7 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: #09090b;
+      background-color: #000000;
       color: #EDEDED;
       min-height: 100vh;
       display: flex;
@@ -267,17 +273,21 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
     }
-    body::before {
-      content: '';
+    .cursor-glow {
       position: fixed;
       top: 0;
-      left: 50%%;
-      transform: translateX(-50%%);
-      width: 100vw;
-      height: 520px;
-      background: radial-gradient(circle at 50%% 0%%, rgba(255, 90, 0, 0.22) 0%%, rgba(255, 140, 0, 0.05) 50%%, transparent 75%%);
+      left: 0;
+      width: 650px;
+      height: 650px;
+      margin-left: -325px;
+      margin-top: -325px;
+      background: %s;
       pointer-events: none;
       z-index: 0;
+      border-radius: 50%%;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      will-change: transform;
     }
     .header-logo {
       display: inline-flex;
@@ -285,7 +295,7 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
       gap: 10px;
       padding: 8px 20px;
       background: rgba(18, 18, 22, 0.85);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 90, 0, 0.3);
       border-radius: 9999px;
       margin-bottom: 32px;
       text-decoration: none;
@@ -296,15 +306,14 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
       font-weight: 800;
       font-size: 1.1rem;
       letter-spacing: -0.02em;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(255, 90, 0, 0.08);
+      box-shadow: 0 0 25px rgba(255, 90, 0, 0.2), 0 4px 20px rgba(0, 0, 0, 0.6);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       transition: all 0.25s ease;
     }
     .header-logo:hover {
-      border-color: rgba(255, 90, 0, 0.4);
-      background: rgba(26, 26, 32, 0.95);
-      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 90, 0, 0.2);
+      border-color: rgba(255, 90, 0, 0.55);
+      box-shadow: 0 0 35px rgba(255, 90, 0, 0.35), 0 6px 24px rgba(0, 0, 0, 0.7);
       transform: translateY(-1px);
     }
     .header-logo-badge {
@@ -319,8 +328,8 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
       letter-spacing: 0.06em;
     }
     .card {
-      background: rgba(15, 15, 18, 0.88);
-      border: 1px solid rgba(255, 255, 255, 0.09);
+      background: rgba(15, 15, 18, 0.92);
+      border: 1px solid %s;
       border-radius: 22px;
       padding: 44px 34px 40px;
       text-align: center;
@@ -332,7 +341,7 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
       gap: 16px;
       position: relative;
       z-index: 1;
-      box-shadow: 0 20px 50px -15px rgba(0, 0, 0, 0.7), 0 0 30px rgba(255, 90, 0, 0.05);
+      box-shadow: %s;
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
       animation: appear 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -435,6 +444,8 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
   </style>
 </head>
 <body>
+  <div id="cursor-glow" class="cursor-glow" aria-hidden="true"></div>
+
   <a href="/" class="header-logo">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF5A00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
     <span>Slug</span>
@@ -460,9 +471,29 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
     <p>Don't shorten links to illegal, phishing, or harmful content.</p>
     <p style="font-family: 'JetBrains Mono', monospace; font-size: 0.725rem; margin-top: 4px;">Elvin Rodrigues — Slug • Go 1.26+ • PostgreSQL • Redis</p>
   </div>
+
+  <script>
+    (function() {
+      var glow = document.getElementById('cursor-glow');
+      if (!glow) return;
+      var hasFinePointer = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+      if (!hasFinePointer) return;
+
+      window.addEventListener('pointermove', function(e) {
+        if (e.pointerType === 'touch') return;
+        glow.style.transform = 'translate3d(' + e.clientX + 'px, ' + e.clientY + 'px, 0)';
+        glow.style.opacity = '1';
+      }, { passive: true });
+
+      document.addEventListener('mouseleave', function() {
+        glow.style.opacity = '0';
+      });
+    })();
+  </script>
 </body>
-</html>`, title, iconColor, iconBg, iconBorder, iconShadow, iconSVG, badgeClass, badgeText, title, code, desc)
+</html>`, title, cursorGradient, cardBorder, cardShadow, iconColor, iconBg, iconBorder, iconShadow, iconSVG, badgeClass, badgeText, title, code, desc)
 
 	w.Write([]byte(html))
 }
+
 

@@ -217,14 +217,28 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
   };
 
   const handleDelete = async (code: string) => {
-    if (!confirm(`Are you sure you want to deactivate short link "/${code}"?`)) return;
+    if (!confirm(`Are you sure you want to delete short link "/${code}"?`)) return;
     try {
       if (token) {
-        await deleteURL(code, token);
+        try {
+          await deleteURL(code, token);
+        } catch (err: any) {
+          const msg = (err.message || '').toLowerCase();
+          // If already gone / not found on backend or unauthorized, still remove locally
+          if (
+            !msg.includes('not found') &&
+            !msg.includes('404') &&
+            !msg.includes('already deleted') &&
+            !msg.includes('unauthorized') &&
+            !msg.includes('401')
+          ) {
+            throw err;
+          }
+        }
         setUserLinks((prev) => prev.filter((item) => item.short_code !== code));
       }
       onDeleteHistoryItem(code);
-      onShowToast('Link deactivated', `/${code} has been deactivated.`, 'info');
+      onShowToast('Link deleted', `/${code} has been removed.`, 'info');
     } catch (err: any) {
       onShowToast('Delete failed', err.message || 'Could not delete link', 'error');
     }

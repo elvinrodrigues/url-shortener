@@ -37,6 +37,9 @@ func (s *urlService) Shorten(ctx context.Context, req domain.CreateURLRequest) (
 		}
 	}
 
+	// TODO: Auto-recycle expired shortcodes created by guest users (user_id == nil && expires_at < NOW()).
+	// Because guest users do not have a dashboard to manage or delete links, automatically deactivate/release
+	// expired guest shortcodes so the aliases become reusable by new requests.
 	if req.CustomCode != "" {
 		if err := validateCustomCode(req.CustomCode); err != nil {
 			return nil, err

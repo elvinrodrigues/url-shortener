@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link2, Plus, Unlink } from 'lucide-react';
+import { CursorGlow } from './CursorGlow.tsx';
 
 interface NotFoundProps {
   pathCode: string;
@@ -7,11 +8,17 @@ interface NotFoundProps {
 }
 
 export const NotFound: React.FC<NotFoundProps> = ({ pathCode, isExpired = false }) => {
+  const accentColor = isExpired ? '#F59E0B' : '#FF5A00';
+  const cardBorder = isExpired ? 'rgba(245, 158, 11, 0.32)' : 'rgba(255, 90, 0, 0.32)';
+  const cardShadow = isExpired
+    ? '0 0 50px -5px rgba(245, 158, 11, 0.24), 0 0 20px -2px rgba(245, 158, 11, 0.14), 0 24px 60px rgba(0, 0, 0, 0.85)'
+    : '0 0 50px -5px rgba(255, 90, 0, 0.24), 0 0 20px -2px rgba(255, 90, 0, 0.14), 0 24px 60px rgba(0, 0, 0, 0.85)';
+
   return (
     <div
       style={{
         minHeight: '100vh',
-        backgroundColor: '#09090b',
+        backgroundColor: '#000000',
         color: '#EDEDED',
         display: 'flex',
         flexDirection: 'column',
@@ -23,22 +30,10 @@ export const NotFound: React.FC<NotFoundProps> = ({ pathCode, isExpired = false 
         fontFamily: "'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
       }}
     >
-      {/* Top Orange Radial Glow */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '100vw',
-          height: '520px',
-          background: 'radial-gradient(circle at 50% 0%, rgba(255, 90, 0, 0.22) 0%, rgba(255, 140, 0, 0.05) 50%, transparent 75%)',
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      />
+      {/* Interactive Cursor Glow */}
+      <CursorGlow darkMode={true} />
 
-      {/* Header Logo Pill */}
+      {/* Header Logo Pill with Ember Glow */}
       <a
         href="/"
         style={{
@@ -47,7 +42,7 @@ export const NotFound: React.FC<NotFoundProps> = ({ pathCode, isExpired = false 
           gap: '10px',
           padding: '8px 20px',
           backgroundColor: 'rgba(18, 18, 22, 0.85)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          border: '1px solid rgba(255, 90, 0, 0.3)',
           borderRadius: '9999px',
           marginBottom: '32px',
           textDecoration: 'none',
@@ -58,7 +53,7 @@ export const NotFound: React.FC<NotFoundProps> = ({ pathCode, isExpired = false 
           fontWeight: 800,
           fontSize: '1.1rem',
           letterSpacing: '-0.02em',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(255, 90, 0, 0.08)',
+          boxShadow: '0 0 25px rgba(255, 90, 0, 0.2), 0 4px 20px rgba(0, 0, 0, 0.6)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           transition: 'all 0.25s ease',
@@ -83,11 +78,11 @@ export const NotFound: React.FC<NotFoundProps> = ({ pathCode, isExpired = false 
         </span>
       </a>
 
-      {/* Main 404 Glass Card */}
+      {/* Main Glass Card with Dynamic Block Glow */}
       <div
         style={{
-          backgroundColor: 'rgba(15, 15, 18, 0.88)',
-          border: '1px solid rgba(255, 255, 255, 0.09)',
+          backgroundColor: 'rgba(15, 15, 18, 0.92)',
+          border: `1px solid ${cardBorder}`,
           borderRadius: '22px',
           padding: '44px 34px 40px',
           textAlign: 'center',
@@ -99,7 +94,7 @@ export const NotFound: React.FC<NotFoundProps> = ({ pathCode, isExpired = false 
           gap: '16px',
           position: 'relative',
           zIndex: 1,
-          boxShadow: '0 20px 50px -15px rgba(0, 0, 0, 0.7), 0 0 30px rgba(255, 90, 0, 0.05)',
+          boxShadow: cardShadow,
           backdropFilter: 'blur(24px)',
           WebkitBackdropFilter: 'blur(24px)',
           animation: 'fadeSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards',
@@ -126,12 +121,10 @@ export const NotFound: React.FC<NotFoundProps> = ({ pathCode, isExpired = false 
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: isExpired ? '#F59E0B' : '#FF5A00',
+            color: accentColor,
             backgroundColor: isExpired ? 'rgba(245, 158, 11, 0.1)' : 'rgba(255, 90, 0, 0.1)',
             border: `1px solid ${isExpired ? 'rgba(245, 158, 11, 0.3)' : 'rgba(255, 90, 0, 0.3)'}`,
-            boxShadow: isExpired
-              ? '0 0 28px -2px rgba(245, 158, 11, 0.3)'
-              : '0 0 28px -2px rgba(255, 90, 0, 0.3)',
+            boxShadow: `0 0 28px -2px ${isExpired ? 'rgba(245, 158, 11, 0.3)' : 'rgba(255, 90, 0, 0.3)'}`,
             marginBottom: '2px',
           }}
         >
@@ -152,7 +145,7 @@ export const NotFound: React.FC<NotFoundProps> = ({ pathCode, isExpired = false 
             letterSpacing: '0.05em',
             textTransform: 'uppercase',
             backgroundColor: isExpired ? 'rgba(245, 158, 11, 0.1)' : 'rgba(255, 90, 0, 0.1)',
-            color: isExpired ? '#F59E0B' : '#FF5A00',
+            color: accentColor,
             border: `1px solid ${isExpired ? 'rgba(245, 158, 11, 0.3)' : 'rgba(255, 90, 0, 0.3)'}`,
           }}
         >

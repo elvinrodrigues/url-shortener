@@ -261,15 +261,44 @@ export const StatsModal: React.FC<StatsModalProps> = ({
                 <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase' }}>
                   Link Status
                 </div>
-                <div style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <ShieldCheck size={20} color={stats.is_active ? '#22C55E' : '#EF4444'} />
-                  <span style={{ fontSize: '1.15rem', fontWeight: 800, color: stats.is_active ? '#22C55E' : '#EF4444' }}>
-                    {stats.is_active ? 'Active' : 'Deactivated'}
-                  </span>
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '4px' }}>
-                  Backend 302 Redirect
-                </div>
+                {(() => {
+                  const isExpired = Boolean(stats.expires_at && new Date(stats.expires_at).getTime() <= Date.now());
+                  return (
+                    <>
+                      <div style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {!stats.is_active ? (
+                          <>
+                            <AlertCircle size={20} color="#EF4444" />
+                            <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#EF4444' }}>
+                              Deactivated
+                            </span>
+                          </>
+                        ) : isExpired ? (
+                          <>
+                            <Clock size={20} color="#F59E0B" />
+                            <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#F59E0B' }}>
+                              Expired
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck size={20} color="#22C55E" />
+                            <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#22C55E' }}>
+                              Active
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '4px' }}>
+                        {!stats.is_active
+                          ? 'Disabled by Owner'
+                          : isExpired
+                          ? 'HTTP 410 Link Expired'
+                          : 'Backend 302 Redirect'}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
 
@@ -320,13 +349,31 @@ export const StatsModal: React.FC<StatsModalProps> = ({
                 </span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Calendar size={13} /> Expires At:
                 </span>
-                <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>
-                  {stats.expires_at ? new Date(stats.expires_at).toLocaleString() : 'Never (Permanent)'}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: 'var(--text-main)', fontWeight: 600 }}>
+                    {stats.expires_at ? new Date(stats.expires_at).toLocaleString() : 'Never (Permanent)'}
+                  </span>
+                  {stats.expires_at && new Date(stats.expires_at).getTime() <= Date.now() && (
+                    <span
+                      className="font-mono"
+                      style={{
+                        fontSize: '10px',
+                        padding: '1px 6px',
+                        borderRadius: '9999px',
+                        backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                        color: '#F59E0B',
+                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                        fontWeight: 700,
+                      }}
+                    >
+                      EXPIRED
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>

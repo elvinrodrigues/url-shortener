@@ -8,14 +8,14 @@ export const getShortUrl = (code: string): string => {
   if (typeof window !== 'undefined' && window.location.origin) {
     return `${window.location.origin}/${code}`;
   }
-  return `https://url.elvinrodrigues.dev/${code}`;
+  return `https://trimto.me/${code}`;
 };
 
 export const getShortHost = (): string => {
   if (typeof window !== 'undefined' && window.location.host) {
     return `${window.location.host}/`;
   }
-  return 'url.elvinrodrigues.dev/';
+  return 'trimto.me/';
 };
 
 export interface CreateURLRequest {

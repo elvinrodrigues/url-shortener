@@ -197,16 +197,12 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteHistoryItem = (code: string) => {
-    if (token) {
-      setUserLinks((prev) => prev.filter((l) => l.short_code !== code));
-      setRefreshTrigger((prev) => prev + 1);
-    } else {
-      setGuestHistory((prev) => {
-        const updated = prev.filter((item) => item.short_code !== code);
-        localStorage.setItem('slug_guest_history', JSON.stringify(updated));
-        return updated;
-      });
-    }
+    setUserLinks((prev) => prev.filter((l) => l.short_code !== code));
+    setGuestHistory((prev) => {
+      const updated = prev.filter((item) => item.short_code !== code);
+      localStorage.setItem('slug_guest_history', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   // Convert URLs for Unified Rendering

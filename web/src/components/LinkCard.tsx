@@ -58,6 +58,8 @@ export const LinkCard: React.FC<LinkCardProps> = ({
     }
   };
 
+  const isExpired = Boolean(link.expires_at && new Date(link.expires_at).getTime() <= Date.now());
+
   return (
     <div
       className="link-card-container"
@@ -75,6 +77,7 @@ export const LinkCard: React.FC<LinkCardProps> = ({
         border: `1px solid ${isHovered ? 'var(--border-hover)' : 'var(--border-subtle)'}`,
         backgroundColor: isHovered ? 'var(--bg-card-hover)' : 'var(--bg-card)',
         boxShadow: isHovered ? 'var(--card-shadow)' : 'none',
+        opacity: isExpired ? 0.78 : 1,
       }}
     >
       {/* Left: Domain Favicon Avatar & Short Code Stack */}
@@ -91,8 +94,8 @@ export const LinkCard: React.FC<LinkCardProps> = ({
         <Favicon url={link.long_url} size={16} />
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden', minWidth: 0, flex: 1 }}>
-          {/* Top Row: Short Code + inline copy button */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {/* Top Row: Short Code + inline copy button + Expired Badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
             <span
               className="font-mono"
               style={{
@@ -105,6 +108,24 @@ export const LinkCard: React.FC<LinkCardProps> = ({
             >
               /{link.short_code}
             </span>
+
+            {isExpired && (
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: '9.5px',
+                  padding: '1px 6px',
+                  borderRadius: '9999px',
+                  backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                  color: '#F59E0B',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                }}
+              >
+                EXPIRED
+              </span>
+            )}
 
             <button
               type="button"
