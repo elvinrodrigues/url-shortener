@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"net/http"
 	"strings"
 	"time"
@@ -28,9 +29,6 @@ type GetStatsResponse struct {
 	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
 	ClickCount int64      `json:"click_count"`
 	IsActive   bool       `json:"is_active"`
-}
-
-type CreateURLRequest struct {
 }
 
 func New(s domain.URLService, url string) *URLHandler {
@@ -219,6 +217,11 @@ func writeJSONError(w http.ResponseWriter, status int, message string) {
 }
 
 func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
+	// The requested code is attacker-controlled and echoed back into the page, so it
+	// must be escaped before interpolation or the 404 page becomes a reflected XSS
+	// sink for any link of the form /<payload>.
+	safeCode := html.EscapeString(code)
+
 	badgeText := "404 // LINK NOT FOUND"
 	badgeClass := "badge-error"
 	title := "Destination unreachable"
@@ -491,9 +494,7 @@ func renderErrorHTML(w http.ResponseWriter, code string, isExpired bool) {
     })();
   </script>
 </body>
-</html>`, title, cursorGradient, cardBorder, cardShadow, iconColor, iconBg, iconBorder, iconShadow, iconSVG, badgeClass, badgeText, title, code, desc)
+</html>`, title, cursorGradient, cardBorder, cardShadow, iconColor, iconBg, iconBorder, iconShadow, iconSVG, badgeClass, badgeText, title, safeCode, desc)
 
 	w.Write([]byte(html))
 }
-
-
