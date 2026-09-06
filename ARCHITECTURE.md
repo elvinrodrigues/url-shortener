@@ -196,6 +196,16 @@ Retrieves analytics for a short code.
 - **Cutoff placement**: `RecycleExpiredGuestCode` takes `expiredBefore time.Time` rather than embedding `NOW()` in SQL, keeping the window a service-layer policy and making the boundary exactly testable. A regression to a bare `NOW()` is caught by the "expired AFTER the cutoff is still quarantined" integration test.
 - **No transaction**: the reclaim is one conditional `UPDATE` followed by one `INSERT`. If a concurrent request wins the race the `INSERT` returns `ErrURLDuplicate` and the existing retry loop handles it. Nothing is corrupted; the only residue is an already-expired guest link left deactivated, which is the desired end state regardless.
 
+### 5.9 Local ID Token Verification: RS256 against Google's JWKS
+- **Decision**: `AuthenticateGoogle` verifies the ID token's signature itself against Google's published key set (`/oauth2/v3/certs`) instead of calling the `tokeninfo` endpoint. This removes a network round trip from every sign-in and Google's availability from the login path.
+- **What moved onto us**: `tokeninfo` implicitly enforced signature *and* lifetime by only answering `200` for a live token. Verifying locally makes three things our responsibility, each of which is an authentication bypass if omitted:
+  1. **Algorithm** — `WithValidMethods([]string{"RS256"})`. Without it, `alg: none` is accepted outright, and an attacker can sign an HS256 token using Google's *public* key as the shared secret. Note the keyfunc returns a typed `*rsa.PublicKey`, which independently blocks `none` and HMAC on a key-type mismatch; the allowlist is what additionally pins RS256 against other RSA algorithms (RS512, PS256) that would otherwise verify against the same key.
+  2. **Lifetime** — `exp`/`nbf` are validated via the embedded `jwt.RegisteredClaims`, and `WithExpirationRequired()` rejects a token that omits `exp` rather than treating it as eternal.
+  3. **Key identity** — an unknown `kid` fails rather than falling back to any available key.
+- **Traffic controls**: the key set is cached until the `Cache-Control: max-age` it was served with. An unknown `kid` triggers at most one refresh per `jwksMinRefreshInterval` (1 minute) — `kid` is attacker-controlled, so an unthrottled refresh path would turn a stream of forged kids into one outbound fetch per request, amplifying against Google and stalling our own goroutines.
+- **Degradation**: if a refresh fails while a matching key is still cached, the cached key is used. Freshness is the only thing lost; the signature check is unaffected.
+- `validateGoogleClaims` (§5.7) is unchanged and still owns `iss`/`aud`/`sub`/`email`/`email_verified`. It already accepted `email_verified` as both a bool and the string `"true"`, so the switch from tokeninfo's stringified claims to a real ID token's booleans needed no change.
+
 ---
 
 ## 6. Measured Performance Baselines
@@ -253,6 +263,7 @@ with no mocking library and no database.
 | `internal/service` | Collision retry and 7→8 length escalation, retry-budget exhaustion, non-duplicate errors not retrying, guest expiry clamping, reserved/malformed custom codes, URL scheme validation, dynamic TTL boundaries, ownership checks on stats and delete, synchronous cache eviction |
 | `internal/service` (guest recycling) | Expired guest custom codes and generated collision codes are recycled once and reclaimed, while unexpired guest links and user-owned links remain protected against reclamation |
 | `internal/service` (custom code charset) | Aliases are restricted to Base62 plus `-`/`_`: path separators, query and fragment delimiters, whitespace, percent-encoding, NUL and multi-byte UTF-8 are all rejected, while hyphenated and underscored aliases and the 3- and 30-character bounds are accepted |
+| `internal/service` (ID token verification) | Genuine RS256 tokens signed against an httptest JWKS: `alg: none`, HS256 confusion, RS512 downgrade, expired, missing `exp`, not-yet-valid, unknown `kid`, right `kid` with the wrong key, and malformed input are each rejected; the key set is fetched once and reused; forged kids do not each trigger a refresh |
 | `internal/service` (Google claims) | Untrusted, absent and prefix/suffix-spoofed `iss`; foreign and empty `aud`; missing `sub` or `email`; `email_verified` absent, `false`, `"false"` or an unexpected type; both the `"true"` string and boolean spellings accepted; audience errors do not disclose the server's client ID |
 | `internal/service` (concurrency) | 100 concurrent misses on one key collapse to exactly 1 database read; leader cancellation does not abort the shared read; 200 concurrent `Shorten` calls yield 200 distinct codes under `-race` |
 | `internal/service` (degradation) | Cache transport failure falls back to Postgres; negative caching shields the repository from repeated probes; the sentinel never leaks to a caller |
@@ -281,8 +292,8 @@ with no mocking library and no database.
 7. **Schema Migrations**: Migrations are raw `.sql` files applied by the Postgres entrypoint on first boot. There is no version table, no rollback, and no mechanism for applying a migration to an already-initialized database.
 8. **No Transactions**: Every operation is a single statement, so none currently require one. Any future multi-statement invariant would need explicit transaction handling.
 9. **Permissive CORS**: `Access-Control-Allow-Origin: *`. Acceptable for a public read API with token-bearing writes, but it is not an origin restriction.
-10. **Google Token Verification Cost**: `AuthenticateGoogle` verifies ID tokens by calling Google's `tokeninfo` endpoint, adding a network round trip per sign-in and making Google a hard dependency of the login path. Local JWKS/RS256 verification would remove both. Signature and expiry are delegated to that endpoint; the `iss`, `aud`, `sub`, `email` and `email_verified` claims are checked locally in `validateGoogleClaims` (§5.7). A move to JWKS would additionally have to verify `exp`/`nbf` here.
-11. **Outbound Token Interpolation**: the ID token is concatenated into the `tokeninfo` query string without escaping, so a caller can append arbitrary query parameters to that request. Google ignores unknown parameters and a mangled token simply fails verification, so the path fails closed, but the token should be passed through `url.QueryEscape`.
+10. **Google Key Set Availability**: ID tokens are verified locally (§5.9), so a sign-in no longer needs Google to answer. The published key set is still fetched on a cold start and on rotation; if that fetch fails while the cache is stale, a cached key is used rather than failing every sign-in — the key remains cryptographically valid, only its freshness guarantee has lapsed. A process that starts during a total Google outage cannot authenticate anyone until one fetch succeeds.
+11. **Key Set Is Per-Process**: the cache lives in memory, so each instance fetches its own copy and a rotation is picked up independently per instance. At this scale that is a handful of requests per rotation; a shared cache would only matter at a much larger fleet size.
 
 ---
 
