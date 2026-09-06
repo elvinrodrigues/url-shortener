@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/elvinrodrigues/url-shortener/internal/ctxlog"
 	"github.com/elvinrodrigues/url-shortener/internal/domain"
@@ -52,7 +53,7 @@ func (r *URLPostgres) GetByCode(ctx context.Context, shortCode string) (*domain.
 	return url, nil
 }
 func (r *URLPostgres) IncrementClicks(ctx context.Context, shortCode string) error {
-	query := "UPDATE urls SET click_count=click_count+1 where short_code = $1"
+	query := "UPDATE urls SET click_count=click_count+1 WHERE short_code = $1 AND is_active = true"
 	res, err := r.db.ExecContext(ctx, query, shortCode)
 	if err != nil {
 		return fmt.Errorf("postgres increment clicks exec: %w", err)
@@ -83,7 +84,7 @@ func (r *URLPostgres) Deactivate(ctx context.Context, shortCode string, userID i
 }
 
 func (r *URLPostgres) GetStats(ctx context.Context, shortCode string) (*domain.URL, error) {
-	query := "SELECT id,short_code,long_url,created_at,expires_at,click_count,is_active,user_id FROM urls WHERE short_code = $1"
+	query := "SELECT id,short_code,long_url,created_at,expires_at,click_count,is_active,user_id FROM urls WHERE short_code = $1 ORDER BY is_active DESC, created_at DESC LIMIT 1"
 	var url = &domain.URL{}
 	err := r.db.QueryRowContext(ctx, query, shortCode).Scan(&url.ID, &url.ShortCode, &url.LongURL, &url.CreatedAt, &url.ExpiresAt, &url.ClickCount, &url.IsActive, &url.UserID)
 	if err != nil {
@@ -115,4 +116,23 @@ func (r *URLPostgres) GetUserURLs(ctx context.Context, userID int64) ([]*domain.
 		return nil, fmt.Errorf("postgres rows user urls: %w", err)
 	}
 	return urls, nil
+}
+
+// RecycleExpiredGuestCode deactivates a guest-owned link whose expiry is older
+// than expiredBefore, freeing its alias. The cutoff is a parameter rather than a
+// literal NOW() so the quarantine window is decided by the service layer and is
+// exactly testable at its boundary.
+func (r *URLPostgres) RecycleExpiredGuestCode(ctx context.Context, shortCode string, expiredBefore time.Time) (bool, error) {
+	query := `UPDATE urls SET is_active = false
+		WHERE short_code = $1 AND user_id IS NULL AND is_active = true
+		  AND expires_at IS NOT NULL AND expires_at < $2`
+	res, err := r.db.ExecContext(ctx, query, shortCode, expiredBefore)
+	if err != nil {
+		return false, fmt.Errorf("postgres recycle expired guest code: %w", err)
+	}
+	count, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("postgres recycle expired guest code rows affected: %w", err)
+	}
+	return count > 0, nil
 }

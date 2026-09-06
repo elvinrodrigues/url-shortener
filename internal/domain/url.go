@@ -29,6 +29,10 @@ type URLRepository interface {
 	Deactivate(ctx context.Context, shortCode string, userID int64) error
 	GetStats(ctx context.Context, shortCode string) (*URL, error)
 	GetUserURLs(ctx context.Context, userID int64) ([]*URL, error)
+	// RecycleExpiredGuestCode releases an alias held by a guest link that expired
+	// before expiredBefore. The cutoff is supplied by the caller rather than
+	// computed here so the quarantine window stays a service-layer policy.
+	RecycleExpiredGuestCode(ctx context.Context, shortCode string, expiredBefore time.Time) (bool, error)
 }
 
 type URLService interface {
@@ -39,8 +43,8 @@ type URLService interface {
 	GetUserURLs(ctx context.Context, userID int64) ([]*URL, error)
 }
 
-type URLCache interface{
-	Set(ctx context.Context,code,longURL string,ttl time.Duration)error
-	Get(ctx context.Context,code string)(string,error)
-	Delete(ctx context.Context,code string)error
+type URLCache interface {
+	Set(ctx context.Context, code, longURL string, ttl time.Duration) error
+	Get(ctx context.Context, code string) (string, error)
+	Delete(ctx context.Context, code string) error
 }
