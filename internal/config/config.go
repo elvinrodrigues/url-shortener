@@ -2,17 +2,24 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
 type Config struct {
-	DatabaseURL    string
-	Port           string
-	BaseURL        string
-	JwtSecret      string
-	RedisAddr      string
-	GoogleClientID string
+	DatabaseURL       string
+	Port              string
+	BaseURL           string
+	JwtSecret         string
+	RedisAddr         string
+	GoogleClientID    string
+	RateLimitFailOpen bool
+	// TrustedProxies lists the CIDR blocks whose X-Forwarded-For headers may be
+	// believed when attributing a request to a client IP. Empty means "use the
+	// loopback/private defaults"; a single "*" trusts every peer.
+	TrustedProxies []string
 }
 
 func Load() (*Config, error) {
@@ -45,7 +52,23 @@ func Load() (*Config, error) {
 
 	cfg.GoogleClientID = os.Getenv("GOOGLE_CLIENT_ID")
 	if cfg.GoogleClientID == "" {
-		cfg.GoogleClientID = "522031681947-n509q6tl9f6k3ottib6h9ojir8lhh7jc.apps.googleusercontent.com"
+		return nil, errors.New("GOOGLE_CLIENT_ID environment variable is required")
+	}
+
+	if raw := os.Getenv("TRUSTED_PROXIES"); raw != "" {
+		for _, part := range strings.Split(raw, ",") {
+			if part = strings.TrimSpace(part); part != "" {
+				cfg.TrustedProxies = append(cfg.TrustedProxies, part)
+			}
+		}
+	}
+
+	if raw := os.Getenv("RATE_LIMIT_FAIL_OPEN"); raw != "" {
+		val, err := strconv.ParseBool(raw)
+		if err != nil {
+			return nil, fmt.Errorf("invalid RATE_LIMIT_FAIL_OPEN: %w", err)
+		}
+		cfg.RateLimitFailOpen = val
 	}
 
 	return cfg, nil

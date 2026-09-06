@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -21,21 +20,37 @@ import (
 )
 
 func main() {
-	cfg, err := config.Load()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
 
+	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Config error %v", err)
+		logger.Error("config error", "error", err)
+		os.Exit(1)
 	}
 	db, err := db.Connect(cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("Database connection error %v", err)
+		logger.Error("database connection error", "error", err)
+		os.Exit(1)
 	}
 
 	repo := postgres.New(db)
 	urlCache, err := cache.NewRedisURLCache(cfg.RedisAddr, 24*time.Hour)
 
 	if err != nil {
-		log.Printf("[WARN]Redis unavailable at startup: %v — running in degraded mode", err)
+		logger.Warn("Redis unavailable at startup — running in degraded mode (POST /shorten will return 503 while Redis is down unless RATE_LIMIT_FAIL_OPEN=true)", "error", err)
+	}
+	if urlCache == nil {
+		// Only returned when REDIS_ADDR itself is unparseable, which no amount of
+		// degraded-mode tolerance can recover from.
+		logger.Error("redis configuration error", "error", err)
+		os.Exit(1)
+	}
+
+	ipResolver, err := handler.NewIPResolver(cfg.TrustedProxies)
+	if err != nil {
+		logger.Error("trusted proxy configuration error", "error", err)
+		os.Exit(1)
 	}
 
 	serv := service.New(repo, urlCache)
@@ -45,7 +60,7 @@ func main() {
 	jwtSecret := []byte(cfg.JwtSecret)
 	auth := handler.AuthMiddleware(jwtSecret)
 
-	rateLimiter := handler.RateLimitMiddleware(urlCache.Client(), 10, time.Minute)
+	rateLimiter := handler.RateLimitMiddleware(urlCache.Client(), ipResolver, 10, time.Minute, cfg.RateLimitFailOpen)
 
 	authService := service.NewAuthService(repo, jwtSecret, cfg.GoogleClientID)
 	authHandler := handler.NewAuthHandler(authService)
@@ -65,9 +80,7 @@ func main() {
 	mux.Handle("GET /stats/{code}", auth(handler.RequireAuth(http.HandlerFunc(h.GetStats))))
 	mux.Handle("GET /user/urls", auth(handler.RequireAuth(http.HandlerFunc(h.GetUserURLs))))
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-
-	logging := handler.LoggingMiddleware(logger)
+	logging := handler.LoggingMiddleware(logger, ipResolver)
 
 	logger.Info("server starting", "port", cfg.Port)
 
@@ -104,6 +117,10 @@ func main() {
 
 	if err := db.Close(); err != nil {
 		logger.Error("database close error", "error", err)
+	}
+
+	if err := urlCache.Client().Close(); err != nil {
+		logger.Error("redis close error", "error", err)
 	}
 
 	logger.Info("server shut down cleanly")

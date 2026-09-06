@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -47,7 +46,7 @@ func userIDFromContext(ctx context.Context) *int64 {
 	return &val
 }
 
-func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
+func LoggingMiddleware(logger *slog.Logger, ipr *IPResolver) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			reqID := r.Header.Get("X-Request-ID")
@@ -70,7 +69,7 @@ func LoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 				"path", r.URL.Path,
 				"status", rw.statusCode,
 				"latency_ms", time.Since(start).Milliseconds(),
-				"ip", realIP(r),
+				"ip", ipr.ClientIP(r),
 			)
 		})
 	}
@@ -128,11 +127,21 @@ func RequireAuth(next http.Handler) http.Handler {
 	})
 }
 
-func RateLimitMiddleware(rdb *redis.Client, limit int, window time.Duration) func(http.Handler) http.Handler {
+// RateLimitMiddleware enforces a sliding-window rate limit backed by Redis.
+// When Redis encounters an error (e.g. outage or network failure), the behavior
+// depends on failOpen:
+//   - If failOpen is true, the request proceeds downstream (fails open).
+//     This prioritizes availability over abuse prevention, but risks unbounded link creation.
+//   - If failOpen is false (the default), the middleware returns 503 Service Unavailable
+//     with a Retry-After header (fails closed).
+//     POST /shorten is the only rate-limited route and is a low-volume write path, so rejecting
+//     writes during a Redis outage is safer than allowing unbounded link creation.
+//
+// In all error cases, the failure is logged via ctxlog with the key and error.
+func RateLimitMiddleware(rdb *redis.Client, ipr *IPResolver, limit int, window time.Duration, failOpen bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ip := realIP(r)
-			key := "rate:" + ip
+			key := "rate:" + ipr.ClientIP(r)
 
 			now := time.Now().UnixNano()
 			windowNs := window.Nanoseconds()
@@ -141,7 +150,13 @@ func RateLimitMiddleware(rdb *redis.Client, limit int, window time.Duration) fun
 			res, err := slidingWindowScript.Run(r.Context(), rdb, []string{key}, now, windowNs, limit, ttlSec).Int()
 
 			if err != nil {
-				next.ServeHTTP(w, r)
+				ctxlog.GetLogger(r.Context(), slog.Default()).Error("rate limiter redis error", "key", key, "error", err)
+				if failOpen {
+					next.ServeHTTP(w, r)
+					return
+				}
+				w.Header().Set("Retry-After", strconv.Itoa(int(window.Seconds())))
+				writeJSONError(w, http.StatusServiceUnavailable, "Service unavailable")
 				return
 			}
 
@@ -156,19 +171,6 @@ func RateLimitMiddleware(rdb *redis.Client, limit int, window time.Duration) fun
 			next.ServeHTTP(w, r)
 		})
 	}
-}
-
-func realIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.SplitN(xff, ",", 2)[0]
-	}
-
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
 }
 
 var slidingWindowScript = redis.NewScript(`
