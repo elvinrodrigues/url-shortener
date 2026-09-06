@@ -1,0 +1,27 @@
+-- 003: make google_id the sole identity anchor for a user account.
+--
+-- Google's `sub` (stored here as google_id) is stable and immutable for the life of
+-- an account. An email address is neither: users rename them, and a Workspace admin
+-- can delete an account and reassign its address to a different person.
+--
+-- Enforcing UNIQUE on email therefore turned a legitimate first-time sign-in into a
+-- constraint violation whenever an address had been seen before under a different
+-- Google account. The application "recovered" from that violation by locating the
+-- existing row by email and overwriting its google_id — handing the original user's
+-- account, and every link they own, to whoever now controls the address.
+--
+-- Email is demoted to a mutable profile attribute, refreshed from the token on each
+-- sign-in and never used to locate a row. Two accounts may now legitimately share an
+-- address (an address reassigned by a Workspace admin, or two rows whose token was
+-- issued without email scope); they remain distinct users because their sub differs.
+--
+-- Only the uniqueness guarantee is dropped:
+--   * users_google_id_key (UNIQUE on google_id) is untouched and still backs the
+--     ON CONFLICT (google_id) upsert.
+--   * idx_users_email (non-unique) is untouched, so no lookup path loses its index.
+--   * email stays NOT NULL.
+--
+-- Idempotent, and safe to run against a populated table: dropping a constraint
+-- cannot fail on existing data.
+
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_email_key;

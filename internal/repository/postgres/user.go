@@ -4,11 +4,24 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/elvinrodrigues/url-shortener/internal/domain"
 	"github.com/lib/pq"
 )
 
+// UpsertGoogleUser resolves a Google identity to an account row.
+//
+// google_id (Google's `sub`) is the sole identity anchor, and deliberately so. It is
+// stable and immutable for the life of an account, whereas an email address is
+// neither: users rename them, and a Workspace admin can delete an account and
+// reassign its address to a different person. Matching a returning user on anything
+// but sub means whoever currently controls an address inherits the account that
+// address used to belong to.
+//
+// Email is therefore a mutable attribute, refreshed from the token on every sign-in
+// and never used to locate a row. Migration 003 drops the UNIQUE constraint that
+// made it behave like a key.
 func (r *URLPostgres) UpsertGoogleUser(ctx context.Context, googleID, email, name, avatarURL string) (*domain.User, error) {
 	query := `
 		INSERT INTO users (google_id, email, name, avatar_url, updated_at)
@@ -27,25 +40,14 @@ func (r *URLPostgres) UpsertGoogleUser(ctx context.Context, googleID, email, nam
 	if err != nil {
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			// Email constraint conflict: update existing record by email
-			fallbackQuery := `
-				UPDATE users
-				SET google_id = $1,
-				    name = $3,
-				    avatar_url = $4,
-				    updated_at = NOW()
-				WHERE email = $2
-				RETURNING id, google_id, email, name, avatar_url, created_at, updated_at;
-			`
-			err = r.db.QueryRowContext(ctx, fallbackQuery, googleID, email, name, avatarURL).Scan(
-				&u.ID, &u.GoogleID, &u.Email, &u.Name, &u.AvatarURL, &u.CreatedAt, &u.UpdatedAt,
-			)
-			if err != nil {
-				return nil, domain.ErrEmailConflict
-			}
-			return &u, nil
+			// Reachable only where migration 003 has not been applied and the legacy
+			// UNIQUE(email) constraint survives. Failing the sign-in is the correct
+			// outcome: the previous behaviour "recovered" here by reassigning the
+			// existing row's google_id, which handed that user's account and every
+			// link they own to the new token holder.
+			return nil, domain.ErrEmailConflict
 		}
-		return nil, err
+		return nil, fmt.Errorf("postgres upsert google user: %w", err)
 	}
 	return &u, nil
 }
