@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -456,4 +457,145 @@ func TestGoogleKeySet_CachesAndThrottles(t *testing.T) {
 			t.Fatalf("10 forged kids caused %d jwks fetches; refresh is not throttled", got)
 		}
 	})
+}
+
+// mutableJWKS is a key set a test can rotate or fail at will, so the outage and
+// rotation paths can be exercised rather than assumed.
+type mutableJWKS struct {
+	mu      sync.Mutex
+	signers []*googleSigner
+	failing bool
+	hits    atomic.Int64
+	srv     *httptest.Server
+}
+
+func newMutableJWKS(t *testing.T, signers ...*googleSigner) *mutableJWKS {
+	t.Helper()
+
+	m := &mutableJWKS{signers: signers}
+	m.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		m.hits.Add(1)
+
+		m.mu.Lock()
+		failing, signers := m.failing, append([]*googleSigner(nil), m.signers...)
+		m.mu.Unlock()
+
+		if failing {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		keys := make([]map[string]string, 0, len(signers))
+		for _, s := range signers {
+			keys = append(keys, s.jwk())
+		}
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		_ = json.NewEncoder(w).Encode(map[string]any{"keys": keys})
+	}))
+	t.Cleanup(m.srv.Close)
+	return m
+}
+
+func (m *mutableJWKS) setFailing(v bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.failing = v
+}
+
+func (m *mutableJWKS) publish(signers ...*googleSigner) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.signers = signers
+}
+
+// TestGoogleKeySet_SurvivesAnOutage covers the two controls that only matter
+// when Google is unreachable: the fetch throttle must still apply (a failed
+// refresh never advances staleAt, so without it every sign-in would retry), and
+// an already-cached key must keep working.
+func TestGoogleKeySet_SurvivesAnOutage(t *testing.T) {
+	signer := newGoogleSigner(t, "kid-1")
+
+	t.Run("a failing endpoint is not retried on every sign-in", func(t *testing.T) {
+		jwks := newMutableJWKS(t, signer)
+		jwks.setFailing(true)
+
+		svc := newAuthServiceForTest(t, jwks.srv.URL)
+		for range 20 {
+			if _, err := svc.verifyGoogleIDToken(context.Background(), signer.sign(t, validIDTokenClaims())); err == nil {
+				t.Fatal("verification succeeded with no keys available")
+			}
+		}
+
+		if got := jwks.hits.Load(); got > 2 {
+			t.Fatalf("20 sign-in attempts during an outage caused %d fetches; the throttle is bypassed", got)
+		}
+	})
+
+	t.Run("a cached key keeps working after the set goes stale", func(t *testing.T) {
+		jwks := newMutableJWKS(t, signer)
+		svc := newAuthServiceForTest(t, jwks.srv.URL)
+
+		if _, err := svc.verifyGoogleIDToken(context.Background(), signer.sign(t, validIDTokenClaims())); err != nil {
+			t.Fatalf("priming the cache failed: %v", err)
+		}
+
+		// Google goes down and the cached set ages out.
+		jwks.setFailing(true)
+		svc.googleKeys.mu.Lock()
+		svc.googleKeys.staleAt = time.Now().Add(-time.Hour)
+		svc.googleKeys.lastFetch = time.Now().Add(-2 * jwksMinRefreshInterval)
+		svc.googleKeys.mu.Unlock()
+
+		if _, err := svc.verifyGoogleIDToken(context.Background(), signer.sign(t, validIDTokenClaims())); err != nil {
+			t.Fatalf("a stale but cryptographically valid key was not used during an outage: %v", err)
+		}
+	})
+}
+
+// TestGoogleKeySet_PicksUpRotation covers the refresh-after-throttle path. Every
+// other test runs inside the throttle window, so without this the branch that
+// actually adopts a rotated key is never executed.
+func TestGoogleKeySet_PicksUpRotation(t *testing.T) {
+	oldKey := newGoogleSigner(t, "kid-old")
+	newKey := newGoogleSigner(t, "kid-new")
+
+	jwks := newMutableJWKS(t, oldKey)
+	svc := newAuthServiceForTest(t, jwks.srv.URL)
+
+	if _, err := svc.verifyGoogleIDToken(context.Background(), oldKey.sign(t, validIDTokenClaims())); err != nil {
+		t.Fatalf("the original key failed: %v", err)
+	}
+
+	// Google rotates. Within the throttle window the new kid is still unknown.
+	jwks.publish(newKey)
+	if _, err := svc.verifyGoogleIDToken(context.Background(), newKey.sign(t, validIDTokenClaims())); err == nil {
+		t.Fatal("a rotated key was adopted without a refresh, so the throttle is not applied")
+	}
+
+	// Once the window elapses the rotation must be picked up.
+	svc.googleKeys.mu.Lock()
+	svc.googleKeys.lastFetch = time.Now().Add(-2 * jwksMinRefreshInterval)
+	svc.googleKeys.mu.Unlock()
+
+	if _, err := svc.verifyGoogleIDToken(context.Background(), newKey.sign(t, validIDTokenClaims())); err != nil {
+		t.Fatalf("the rotated key was never adopted after the throttle elapsed: %v", err)
+	}
+}
+
+// TestGoogleKeySet_IgnoresNonRS256Keys covers the ingest filter. A published key
+// advertising a different algorithm must not enter the cache, or the parser's
+// RS256 allowlist would be verifying against a key we never vetted.
+func TestGoogleKeySet_IgnoresNonRS256Keys(t *testing.T) {
+	signer := newGoogleSigner(t, "kid-1")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		jwk := signer.jwk()
+		jwk["alg"] = "RS512" // not an RS256 signing key
+		_ = json.NewEncoder(w).Encode(map[string]any{"keys": []map[string]string{jwk}})
+	}))
+	t.Cleanup(srv.Close)
+
+	svc := newAuthServiceForTest(t, srv.URL)
+	if _, err := svc.verifyGoogleIDToken(context.Background(), signer.sign(t, validIDTokenClaims())); err == nil {
+		t.Fatal("a key advertising a non-RS256 algorithm was admitted to the cache")
+	}
 }

@@ -22,25 +22,32 @@ const (
 	// Google normally advertises several hours; this is a conservative floor.
 	jwksFallbackTTL = 1 * time.Hour
 
-	// jwksMinRefreshInterval throttles the unknown-kid refresh path. Key rotation
-	// is rare, but `kid` is attacker-controlled: without a floor, a stream of
-	// tokens bearing random kids would turn every request into an outbound fetch
-	// and make this service a traffic amplifier against Google (and a way to stall
-	// our own request goroutines).
+	// jwksMinRefreshInterval is the floor between outbound fetches, whatever
+	// prompted them — a stale set, an unknown kid, or a previous failure.
+	//
+	// It has to cover all three. `kid` is attacker-controlled, so a stream of
+	// forged kids would otherwise become one fetch per request; and a failing
+	// fetch never advances staleAt, so a Google outage would leave every
+	// subsequent sign-in retrying immediately. Either path makes this service a
+	// traffic amplifier against Google and stalls our own goroutines.
 	jwksMinRefreshInterval = 1 * time.Minute
+
+	// jwksFetchTimeout bounds a refresh independently of the injected client, so
+	// a client configured without a timeout cannot pin the write lock forever.
+	jwksFetchTimeout = 5 * time.Second
 )
 
 // googleKeySet caches Google's signing keys, keyed by `kid`.
 //
-// A single mutex guards everything and is held across the network fetch. That
-// serialises concurrent refreshes rather than letting N cache misses become N
-// outbound requests; the fetch is bounded by the client's timeout, so the worst
-// case is a short queue rather than a stampede.
+// Reads take the read lock so a sign-in presenting a known, fresh key never
+// queues behind an in-flight refresh. Only the refresh path takes the write
+// lock, and it holds it across the fetch so N concurrent misses collapse into
+// one outbound request rather than N.
 type googleKeySet struct {
-	mu        sync.Mutex
+	mu        sync.RWMutex
 	keys      map[string]*rsa.PublicKey
 	staleAt   time.Time // when the cached set must be refetched
-	lastFetch time.Time // throttles forced refreshes on an unknown kid
+	lastFetch time.Time // floor between outbound fetches, stamped even on failure
 
 	url    string
 	client *http.Client
@@ -61,35 +68,49 @@ func (g *googleKeySet) keyFor(ctx context.Context, kid string) (*rsa.PublicKey, 
 		return nil, fmt.Errorf("google token header has no kid")
 	}
 
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	now := time.Now()
-
-	if now.After(g.staleAt) {
-		if err := g.refreshLocked(ctx, now); err != nil {
-			// Serve a stale key rather than failing every sign-in during a Google
-			// outage: the key is still cryptographically valid, it is only the
-			// freshness guarantee that lapsed.
-			if key, ok := g.keys[kid]; ok {
-				return key, nil
-			}
-			return nil, err
-		}
-	}
-
-	if key, ok := g.keys[kid]; ok {
+	// Fast path: a known key from a set that is still fresh needs no write lock, so
+	// ordinary sign-ins never queue behind someone else's refresh.
+	g.mu.RLock()
+	key, known := g.keys[kid]
+	fresh := time.Now().Before(g.staleAt)
+	g.mu.RUnlock()
+	if known && fresh {
 		return key, nil
 	}
 
-	// Unknown kid: either a rotation we have not seen, or a forged header.
-	if now.Sub(g.lastFetch) < jwksMinRefreshInterval {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	// Re-check under the write lock: another goroutine may have refreshed while
+	// this one waited, which is what collapses concurrent misses into one fetch.
+	now := time.Now()
+	key, known = g.keys[kid]
+	if known && now.Before(g.staleAt) {
+		return key, nil
+	}
+
+	// A single throttle covers every reason to refresh — stale set, unknown kid,
+	// or recovering from a failed fetch. refreshLocked stamps lastFetch before it
+	// does anything, so a failure throttles the next attempt just as a success
+	// does; without that, an outage never advances staleAt and every sign-in
+	// retries immediately.
+	if now.Sub(g.lastFetch) >= jwksMinRefreshInterval {
+		if err := g.refreshLocked(ctx, now); err != nil {
+			// Stale-if-error: a cached key is still cryptographically valid, only
+			// its freshness guarantee lapsed. Better than failing every sign-in.
+			if cached, ok := g.keys[kid]; ok {
+				return cached, nil
+			}
+			return nil, err
+		}
+		if refreshed, ok := g.keys[kid]; ok {
+			return refreshed, nil
+		}
 		return nil, fmt.Errorf("no google signing key for kid %q", kid)
 	}
-	if err := g.refreshLocked(ctx, now); err != nil {
-		return nil, err
-	}
-	if key, ok := g.keys[kid]; ok {
+
+	// Throttled. Serve what we have rather than failing a legitimate sign-in.
+	if known {
 		return key, nil
 	}
 	return nil, fmt.Errorf("no google signing key for kid %q", kid)
@@ -99,7 +120,14 @@ func (g *googleKeySet) keyFor(ctx context.Context, kid string) (*rsa.PublicKey, 
 func (g *googleKeySet) refreshLocked(ctx context.Context, now time.Time) error {
 	g.lastFetch = now
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.url, nil)
+	// Detached from the caller's cancellation. This fetch populates a cache shared
+	// by every sign-in queued behind the write lock, so one client disconnecting
+	// must not fail it for all of them — the same reasoning the redirect path uses
+	// for its singleflight read.
+	fetchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), jwksFetchTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(fetchCtx, http.MethodGet, g.url, nil)
 	if err != nil {
 		return fmt.Errorf("building jwks request: %w", err)
 	}
