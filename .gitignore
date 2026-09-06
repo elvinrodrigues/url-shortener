@@ -3,9 +3,12 @@
 .learning/
 docs/
 
-# Binary executables built by 'go build'
-server
-gentoken
+# Binary executables built by 'go build'.
+# Anchored with a leading slash so they match only the artifacts at the repo
+# root. Unanchored, "server" and "gentoken" match at every level and silently
+# ignore new files added under cmd/server/ and cmd/gentoken/.
+/server
+/gentoken
 *.exe
 *.out
 
