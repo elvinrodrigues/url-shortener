@@ -2,10 +2,8 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/elvinrodrigues/url-shortener/internal/domain"
@@ -17,19 +15,46 @@ type AuthService struct {
 	jwtSecret      []byte
 	googleClientID string
 	httpClient     *http.Client
+	googleKeys     *googleKeySet
 }
 
 func NewAuthService(userRepo domain.UserRepository, jwtSecret []byte, googleClientID string) *AuthService {
+	client := &http.Client{Timeout: 5 * time.Second}
 	return &AuthService{
 		userRepo:       userRepo,
 		jwtSecret:      jwtSecret,
 		googleClientID: googleClientID,
-		httpClient:     &http.Client{Timeout: 5 * time.Second},
+		httpClient:     client,
+		googleKeys:     newGoogleKeySet(client),
 	}
 }
 
+// SetHTTPClient swaps the transport used for outbound calls, including the JWKS
+// fetch. Intended for tests.
 func (s *AuthService) SetHTTPClient(client *http.Client) {
 	s.httpClient = client
+	if s.googleKeys != nil {
+		s.googleKeys.client = client
+	}
+}
+
+// SetGoogleJWKSURL overrides where signing keys are fetched from. Intended for
+// tests that serve a key set from an httptest server.
+func (s *AuthService) SetGoogleJWKSURL(url string) {
+	if s.googleKeys != nil {
+		s.googleKeys.url = url
+	}
+}
+
+// googleIDClaims is the subset of an ID token this service reads. Embedding
+// RegisteredClaims is what makes the parser validate `exp` and `nbf` for us —
+// with the tokeninfo endpoint gone, nothing else checks token lifetime.
+type googleIDClaims struct {
+	Email         string `json:"email"`
+	EmailVerified any    `json:"email_verified"`
+	Name          string `json:"name"`
+	Picture       string `json:"picture"`
+	jwt.RegisteredClaims
 }
 
 type GoogleTokenClaims struct {
@@ -66,15 +91,15 @@ func isEmailVerified(v any) bool {
 	}
 }
 
-// validateGoogleClaims decides whether a set of Google claims may be turned into an
-// account. It is separated from the HTTP exchange so the security rules are testable
-// without a network round trip.
+// validateGoogleClaims decides whether a set of already-verified Google claims may
+// be turned into an account. It owns policy only; authenticity is settled earlier.
+//
+// Signature, algorithm, `exp` and `nbf` are enforced by verifyGoogleIDToken before
+// anything reaches here, so a caller must never invoke this on unverified claims —
+// every field below is attacker-supplied until that signature check has passed.
 //
 // Every message here reaches the client verbatim (the handler surfaces err.Error()),
 // so none of them may name server-side configuration.
-//
-// Token expiry is not checked: tokeninfo only answers 200 for a live token. A move
-// to local JWKS validation would have to add an `exp`/`nbf` check here.
 func validateGoogleClaims(c GoogleTokenClaims, expectedAud string) error {
 	if !googleIssuers[c.Iss] {
 		return fmt.Errorf("%w: google token has an untrusted issuer", domain.ErrGoogleTokenInvalid)
@@ -107,31 +132,59 @@ type AppClaims struct {
 	jwt.RegisteredClaims
 }
 
+// verifyGoogleIDToken checks an ID token's signature against Google's published
+// keys and returns its claims.
+//
+// Signature and lifetime were previously delegated to Google's tokeninfo
+// endpoint. Verifying locally removes a network round trip from every sign-in
+// and a hard dependency on that endpoint, but it moves three obligations here:
+//
+//   - Algorithm. WithValidMethods pins RS256, and the parser enforces it before
+//     the keyfunc runs. Without it, "alg":"none" is accepted outright and an
+//     HS256 token can be forged by signing with Google's *public* key, which is
+//     published — a complete authentication bypass.
+//   - Lifetime. `exp` and `nbf` are validated by the parser via RegisteredClaims;
+//     WithExpirationRequired additionally rejects a token that omits `exp`
+//     entirely rather than treating it as never-expiring.
+//   - Key identity. The `kid` header selects the key, so an unknown kid must
+//     fail rather than fall back to any available key.
+func (s *AuthService) verifyGoogleIDToken(ctx context.Context, idToken string) (GoogleTokenClaims, error) {
+	parser := jwt.NewParser(
+		jwt.WithValidMethods([]string{"RS256"}),
+		jwt.WithExpirationRequired(),
+	)
+
+	var claims googleIDClaims
+	_, err := parser.ParseWithClaims(idToken, &claims, func(t *jwt.Token) (any, error) {
+		kid, _ := t.Header["kid"].(string)
+		return s.googleKeys.keyFor(ctx, kid)
+	})
+	if err != nil {
+		return GoogleTokenClaims{}, fmt.Errorf("%w: %s", domain.ErrGoogleTokenInvalid, "could not verify google token")
+	}
+
+	// An ID token's `aud` is a single client ID, but the claim is defined as a
+	// string-or-array so the library models it as a slice.
+	var aud string
+	if len(claims.Audience) > 0 {
+		aud = claims.Audience[0]
+	}
+
+	return GoogleTokenClaims{
+		Sub:           claims.Subject,
+		Email:         claims.Email,
+		EmailVerified: claims.EmailVerified,
+		Name:          claims.Name,
+		Picture:       claims.Picture,
+		Aud:           aud,
+		Iss:           claims.Issuer,
+	}, nil
+}
+
 func (s *AuthService) AuthenticateGoogle(ctx context.Context, idToken string) (*domain.AuthResponse, error) {
-	endpoint := "https://oauth2.googleapis.com/tokeninfo?id_token=" + url.QueryEscape(idToken)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	gClaims, err := s.verifyGoogleIDToken(ctx, idToken)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	client := s.httpClient
-	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Second}
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to verify Google token: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: invalid or expired Google token", domain.ErrGoogleTokenInvalid)
-	}
-
-	var gClaims GoogleTokenClaims
-	if err := json.NewDecoder(resp.Body).Decode(&gClaims); err != nil {
-		return nil, fmt.Errorf("failed to decode Google token response: %w", err)
+		return nil, err
 	}
 
 	if err := validateGoogleClaims(gClaims, s.googleClientID); err != nil {
