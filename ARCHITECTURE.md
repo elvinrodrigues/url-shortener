@@ -130,6 +130,12 @@ Retrieves analytics for a short code.
 - `401 Unauthorized`: Missing or invalid Bearer token.
 - `403 Forbidden`: Authenticated user is not the owner of the specified URL.
 
+### `DELETE /user/urls/expired` (Protected by JWT)
+Batch deactivates all active, expired URLs owned by the authenticated user and evicts them from cache.
+- `200 OK`: Returns count of purged links (`{"deleted": <count>}`).
+- `401 Unauthorized`: Missing or invalid Bearer token.
+- `500 Internal Server Error`: Database or internal server failure.
+
 ---
 
 ## 5. Architectural Decisions & Tradeoff Analysis
@@ -280,6 +286,9 @@ with no mocking library and no database.
 | `internal/shortcode` | Generator uniqueness over 10,000 sequential draws |
 | `internal/repository/postgres` (safety guard) | `assertTestDatabase` refuses to run tests/migrations/truncations unless database name ends in `_test` |
 | `internal/repository/postgres` (integration) | Deterministic active-row preference on `GetStats`, single-row click increment predicate, and expired guest link recycling and alias reclamation |
+| `internal/repository/postgres` (deactivate semantics) | `Deactivate` on expired-but-active link deactivates the row; re-deleting an inactive link is an idempotent no-op returning `nil`; cross-user delete returns `ErrURLNotFound` (IDOR guard); freed alias can be reclaimed |
+| `internal/service` (batch purge) | `DeleteExpired` returns exact count of user's expired active links and synchronously evicts each affected short code from cache, while preserving other users' and live links |
+| `internal/handler` (batch purge) | `DELETE /user/urls/expired` returns 200 with deleted count for authenticated user, and 401 when token is missing |
 
 ---
 

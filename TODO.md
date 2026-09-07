@@ -9,7 +9,7 @@
        - Check if the existing record was created by a guest user (`user_id IS NULL`) and has expired (`expires_at < NOW()`).
        - If expired, automatically deactivate the old guest record (`UPDATE urls SET is_active = false WHERE short_code = $1 AND user_id IS NULL AND expires_at < NOW()`) and allow the new link to claim the alias.
     2. Evict the old shortcode from Redis cache (`cache.Delete(ctx, code)`).
-- [ ] **Deleting Expired Links & Purge Handling**
+- [x] **Deleting Expired Links & Purge Handling**
   - **Problem**: Users cannot easily remove expired links from their history/catalog, and deleting expired links shouldn't return errors if the link is already expired or inactive.
   - **Proposed Solution**:
     1. Update the delete endpoint/handler (`DELETE /:code`) so that deleting an expired link (both for registered users and guest history) cleanly deactivates/removes it from view and frees the shortcode immediately.
