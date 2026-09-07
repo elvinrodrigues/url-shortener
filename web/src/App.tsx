@@ -13,6 +13,7 @@ import {
   checkHealth,
   getUserURLs,
   getShortUrl,
+  isLinkExpired,
   type User,
   type HistoryItem,
   type CreateURLResponse,
@@ -264,6 +265,8 @@ export const App: React.FC = () => {
               onDeleteHistoryItem={handleDeleteHistoryItem}
               onShowToast={showToast}
               onNavigateAllLinks={() => handleNavigateView('links')}
+              onRefresh={fetchUserLinks}
+              onClearGuestHistory={() => setGuestHistory((prev) => prev.filter((item) => !isLinkExpired(item.expires_at)))}
             />
           </>
         ) : (

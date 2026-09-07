@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Search, Link2, ArrowRight, UserCheck, Lock, Sparkles } from 'lucide-react';
+import { Search, Link2, ArrowRight, UserCheck, Lock, Sparkles, Trash2 } from 'lucide-react';
 import { LinkCard, type LinkItemData } from './LinkCard.tsx';
-import { deleteURL, type User } from '../api.ts';
+import { deleteURL, isLinkExpired, type User } from '../api.ts';
+import { clearAllExpiredLinks } from '../clearExpired.ts';
 
 interface LiveDashboardProps {
   token: string;
@@ -14,6 +15,8 @@ interface LiveDashboardProps {
   onDeleteHistoryItem: (code: string) => void;
   onShowToast: (title: string, message?: string, type?: 'success' | 'error' | 'info') => void;
   onNavigateAllLinks: () => void;
+  onRefresh?: () => Promise<void> | void;
+  onClearGuestHistory?: () => void;
 }
 
 export const LiveDashboard: React.FC<LiveDashboardProps> = ({
@@ -26,27 +29,69 @@ export const LiveDashboard: React.FC<LiveDashboardProps> = ({
   onDeleteHistoryItem,
   onShowToast,
   onNavigateAllLinks,
+  onRefresh,
+  onClearGuestHistory,
 }) => {
   const [search, setSearch] = useState('');
+  const [clearingExpired, setClearingExpired] = useState(false);
+
+  const expiredCount = allDisplayLinks.filter((l) => isLinkExpired(l.expires_at)).length;
+  const hasExpired = expiredCount > 0;
+
+  const handleClearExpired = async () => {
+    if (!hasExpired || clearingExpired) return;
+    const confirmMessage = token
+      ? `Clear all ${expiredCount} expired link(s) from your account? This action cannot be undone.`
+      : `Clear all ${expiredCount} expired link(s) from your local browser history?\n\nNote: This removes them from your local history only and does not delete them from the server.`;
+
+    if (!confirm(confirmMessage)) return;
+
+    setClearingExpired(true);
+    try {
+      await clearAllExpiredLinks({
+        token,
+        onShowToast,
+        onRefresh,
+        onClearGuestHistory,
+      });
+    } finally {
+      setClearingExpired(false);
+    }
+  };
 
   const handleDelete = async (code: string) => {
+    if (!token) {
+      if (
+        !confirm(
+          `Remove short link "/${code}" from your local history?\n\nNote: This removes the link from your browser history only. It does not delete it from the server.`
+        )
+      ) {
+        return;
+      }
+      onDeleteHistoryItem(code);
+      onShowToast(
+        'Removed from history',
+        `/${code} removed from local history (remains on server until expiry).`,
+        'info'
+      );
+      return;
+    }
+
     if (!confirm(`Are you sure you want to delete short link "/${code}"?`)) return;
     try {
-      if (token) {
-        try {
-          await deleteURL(code, token);
-        } catch (err: any) {
-          const msg = (err.message || '').toLowerCase();
-          // If already gone / not found on backend or unauthorized, still remove locally
-          if (
-            !msg.includes('not found') &&
-            !msg.includes('404') &&
-            !msg.includes('already deleted') &&
-            !msg.includes('unauthorized') &&
-            !msg.includes('401')
-          ) {
-            throw err;
-          }
+      try {
+        await deleteURL(code, token);
+      } catch (err: any) {
+        const msg = (err.message || '').toLowerCase();
+        // If already gone / not found on backend or unauthorized, still remove locally
+        if (
+          !msg.includes('not found') &&
+          !msg.includes('404') &&
+          !msg.includes('already deleted') &&
+          !msg.includes('unauthorized') &&
+          !msg.includes('401')
+        ) {
+          throw err;
         }
       }
       onDeleteHistoryItem(code);
@@ -190,27 +235,60 @@ export const LiveDashboard: React.FC<LiveDashboardProps> = ({
           )}
         </div>
 
-        {/* Search Input Pill */}
-        <div className="dashboard-search-container" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          <Search size={12} style={{ position: 'absolute', left: '10px', color: 'var(--text-dim)' }} />
-          <input
-            type="text"
-            placeholder="Filter links..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="dashboard-search-input"
+        {/* Controls: Clear Expired Button & Search Input Pill */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={handleClearExpired}
+            disabled={!hasExpired || clearingExpired}
+            className="btn-icon-action"
             style={{
-              backgroundColor: 'var(--bg-input)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '9999px',
-              padding: '5px 12px 5px 28px',
+              padding: '5px 11px',
               fontSize: '11.5px',
-              color: 'var(--text-main)',
-              outline: 'none',
-              width: '160px',
-              transition: 'all 0.2s ease',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              borderRadius: '9999px',
+              color: hasExpired ? '#EF4444' : 'var(--text-dim)',
+              opacity: hasExpired ? 1 : 0.45,
+              cursor: hasExpired ? 'pointer' : 'not-allowed',
+              transition: 'all 0.18s ease',
             }}
-          />
+            title={
+              !hasExpired
+                ? 'No expired links'
+                : token
+                ? `Clear ${expiredCount} expired link(s) from account`
+                : `Clear ${expiredCount} expired link(s) from local history`
+            }
+          >
+            <Trash2 size={12} />
+            <span>Clear Expired{expiredCount > 0 ? ` (${expiredCount})` : ''}</span>
+          </button>
+
+          {/* Search Input Pill */}
+          <div className="dashboard-search-container" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <Search size={12} style={{ position: 'absolute', left: '10px', color: 'var(--text-dim)' }} />
+            <input
+              type="text"
+              placeholder="Filter links..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="dashboard-search-input"
+              style={{
+                backgroundColor: 'var(--bg-input)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '9999px',
+                padding: '5px 12px 5px 28px',
+                fontSize: '11.5px',
+                color: 'var(--text-main)',
+                outline: 'none',
+                width: '160px',
+                transition: 'all 0.2s ease',
+              }}
+            />
+          </div>
         </div>
       </div>
 

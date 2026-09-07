@@ -15,9 +15,11 @@ import {
   BarChart3,
   ShieldCheck,
   Layers,
+  Trash2,
 } from 'lucide-react';
 import { LinkCard, type LinkItemData } from './LinkCard.tsx';
-import { deleteURL, getUserURLs, type URLStats, type User } from '../api.ts';
+import { deleteURL, getUserURLs, isLinkExpired, type URLStats, type User } from '../api.ts';
+import { clearAllExpiredLinks } from '../clearExpired.ts';
 
 interface AllLinksViewProps {
   token: string;
@@ -266,13 +268,39 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
     onShowToast('Exported CSV', 'Downloaded link records', 'success');
   };
 
+  const [clearingExpired, setClearingExpired] = useState(false);
+  const expiredCount = allDisplayLinks.filter((l) => isLinkExpired(l.expires_at)).length;
+  const hasExpired = expiredCount > 0;
+
+  const handleClearExpired = async () => {
+    if (!hasExpired || clearingExpired) return;
+    if (
+      !confirm(
+        `Clear all ${expiredCount} expired link(s) from your account? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setClearingExpired(true);
+    try {
+      await clearAllExpiredLinks({
+        token,
+        onShowToast,
+        onRefresh: handleRefresh,
+      });
+    } finally {
+      setClearingExpired(false);
+    }
+  };
+
   // Filter links
   const filteredLinks = allDisplayLinks.filter((item) => {
     const matchesSearch =
       item.short_code.toLowerCase().includes(search.toLowerCase()) ||
       item.long_url.toLowerCase().includes(search.toLowerCase());
 
-    const isExpired = item.expires_at ? new Date(item.expires_at) < new Date() : false;
+    const isExpired = isLinkExpired(item.expires_at);
     const matchesStatus =
       statusFilter === 'all'
         ? true
@@ -298,10 +326,7 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
 
   // Metrics
   const totalClicks = allDisplayLinks.reduce((acc, curr) => acc + (curr.click_count || 0), 0);
-  const activeCount = allDisplayLinks.filter((l) => {
-    const isExpired = l.expires_at ? new Date(l.expires_at) < new Date() : false;
-    return l.is_active && !isExpired;
-  }).length;
+  const activeCount = allDisplayLinks.filter((l) => l.is_active && !isLinkExpired(l.expires_at)).length;
 
   return (
     <div className="dashboard-page-container" style={{ maxWidth: '880px', margin: '0 auto', padding: '6.5rem 1.25rem 5rem' }}>
@@ -378,6 +403,28 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
 
         {/* Action Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={handleClearExpired}
+            disabled={!hasExpired || clearingExpired}
+            className="btn-icon-action"
+            style={{
+              padding: '0.5rem 0.75rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: hasExpired ? '#EF4444' : 'var(--text-dim)',
+              opacity: hasExpired ? 1 : 0.45,
+              cursor: hasExpired ? 'pointer' : 'not-allowed',
+            }}
+            title={hasExpired ? `Clear ${expiredCount} expired link(s)` : 'No expired links to clear'}
+          >
+            <Trash2 size={13} />
+            <span>Clear Expired{expiredCount > 0 ? ` (${expiredCount})` : ''}</span>
+          </button>
+
           <button
             type="button"
             onClick={handleRefresh}

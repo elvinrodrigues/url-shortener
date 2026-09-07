@@ -193,3 +193,30 @@ export async function deleteURL(code: string, token: string): Promise<void> {
     throw new Error(err.error || 'Failed to delete URL');
   }
 }
+
+export const isLinkExpired = (expiresAt?: string | null): boolean => {
+  if (!expiresAt) return false;
+  return new Date(expiresAt).getTime() <= Date.now();
+};
+
+export async function deleteExpiredURLs(token: string): Promise<number> {
+  const res = await fetch(`${API_BASE_URL}/user/urls/expired`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token.trim()}`,
+      'Accept': 'application/json',
+    },
+  });
+
+  if (!res.ok) {
+    if (res.status === 401) {
+      throw new Error('Unauthorized');
+    }
+    const err = await res.json().catch(() => ({ error: 'Failed to clear expired links' }));
+    throw new Error(err.error || 'Failed to clear expired links');
+  }
+
+  const data = await res.json();
+  return data.deleted ?? 0;
+}
+

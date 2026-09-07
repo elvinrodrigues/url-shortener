@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Copy, Check, ExternalLink, QrCode, BarChart3, Trash2 } from 'lucide-react';
 import { Favicon } from './Favicon.tsx';
-import { getShortUrl } from '../api.ts';
+import { getShortUrl, isLinkExpired } from '../api.ts';
 
 export interface LinkItemData {
   short_code: string;
@@ -58,7 +58,7 @@ export const LinkCard: React.FC<LinkCardProps> = ({
     }
   };
 
-  const isExpired = Boolean(link.expires_at && new Date(link.expires_at).getTime() <= Date.now());
+  const isExpired = isLinkExpired(link.expires_at);
 
   return (
     <div
