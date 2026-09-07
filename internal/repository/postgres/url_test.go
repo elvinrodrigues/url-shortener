@@ -642,3 +642,195 @@ func TestAssertTestDatabase(t *testing.T) {
 		})
 	}
 }
+
+func TestURLPostgres_Deactivate_Semantics(t *testing.T) {
+	repo, db := setupTestDB(t)
+	ctx := context.Background()
+
+	var user1ID, user2ID int64
+	err := db.QueryRowContext(ctx, "INSERT INTO users (email, name, google_id) VALUES ('user1@test.com', 'User 1', 'gid1') RETURNING id").Scan(&user1ID)
+	if err != nil {
+		t.Fatalf("inserting user1: %v", err)
+	}
+	err = db.QueryRowContext(ctx, "INSERT INTO users (email, name, google_id) VALUES ('user2@test.com', 'User 2', 'gid2') RETURNING id").Scan(&user2ID)
+	if err != nil {
+		t.Fatalf("inserting user2: %v", err)
+	}
+
+	t.Run("deleting an expired-but-active link succeeds and deactivates the row", func(t *testing.T) {
+		const code = "exp-act-1"
+		_, err := db.ExecContext(ctx, `
+			INSERT INTO urls (short_code, long_url, is_active, created_at, expires_at, user_id)
+			VALUES ($1, 'https://example.com/expired', true, NOW() - INTERVAL '2 hour', NOW() - INTERVAL '1 hour', $2)
+		`, code, user1ID)
+		if err != nil {
+			t.Fatalf("inserting expired active link: %v", err)
+		}
+
+		if err := repo.Deactivate(ctx, code, user1ID); err != nil {
+			t.Fatalf("Deactivate failed on expired active link: %v", err)
+		}
+
+		var isActive bool
+		if err := db.QueryRowContext(ctx, "SELECT is_active FROM urls WHERE short_code = $1", code).Scan(&isActive); err != nil {
+			t.Fatalf("querying is_active: %v", err)
+		}
+		if isActive {
+			t.Fatal("expected is_active to be false after Deactivate")
+		}
+	})
+
+	t.Run("deleting an already-inactive link is an idempotent no-op returning nil", func(t *testing.T) {
+		const code = "already-inact-1"
+		_, err := db.ExecContext(ctx, `
+			INSERT INTO urls (short_code, long_url, is_active, created_at, user_id)
+			VALUES ($1, 'https://example.com/inactive', false, NOW(), $2)
+		`, code, user1ID)
+		if err != nil {
+			t.Fatalf("inserting inactive link: %v", err)
+		}
+
+		if err := repo.Deactivate(ctx, code, user1ID); err != nil {
+			t.Fatalf("expected Deactivate on already-inactive row to return nil, got %v", err)
+		}
+	})
+
+	t.Run("deleting another user's link returns ErrURLNotFound (IDOR guard)", func(t *testing.T) {
+		const code = "u2-link-1"
+		_, err := db.ExecContext(ctx, `
+			INSERT INTO urls (short_code, long_url, is_active, created_at, user_id)
+			VALUES ($1, 'https://example.com/u2', true, NOW(), $2)
+		`, code, user2ID)
+		if err != nil {
+			t.Fatalf("inserting user2 link: %v", err)
+		}
+
+		err = repo.Deactivate(ctx, code, user1ID)
+		if !errors.Is(err, domain.ErrURLNotFound) {
+			t.Fatalf("expected ErrURLNotFound when deleting another user's link, got %v", err)
+		}
+	})
+
+	t.Run("after deletion the alias can be claimed again by a new link", func(t *testing.T) {
+		const code = "reclaim-alias-1"
+		_, err := db.ExecContext(ctx, `
+			INSERT INTO urls (short_code, long_url, is_active, created_at, user_id)
+			VALUES ($1, 'https://example.com/old', true, NOW(), $2)
+		`, code, user1ID)
+		if err != nil {
+			t.Fatalf("inserting initial link: %v", err)
+		}
+
+		if err := repo.Deactivate(ctx, code, user1ID); err != nil {
+			t.Fatalf("Deactivate: %v", err)
+		}
+
+		// New link claiming the same code succeeds because partial index covers only is_active = true
+		newReq := domain.CreateURLRequest{
+			LongURL: "https://example.com/new",
+			UserID:  &user2ID,
+		}
+		newURL, err := repo.Create(ctx, &newReq, code)
+		if err != nil {
+			t.Fatalf("creating new link with reclaimed alias failed: %v", err)
+		}
+		if newURL.ShortCode != code {
+			t.Fatalf("expected code %s, got %s", code, newURL.ShortCode)
+		}
+	})
+}
+
+func TestURLPostgres_DeactivateExpired(t *testing.T) {
+	repo, db := setupTestDB(t)
+	ctx := context.Background()
+
+	var user1ID, user2ID int64
+	err := db.QueryRowContext(ctx, "INSERT INTO users (email, name, google_id) VALUES ('u1@test.com', 'U1', 'gid1') RETURNING id").Scan(&user1ID)
+	if err != nil {
+		t.Fatalf("inserting user1: %v", err)
+	}
+	err = db.QueryRowContext(ctx, "INSERT INTO users (email, name, google_id) VALUES ('u2@test.com', 'U2', 'gid2') RETURNING id").Scan(&user2ID)
+	if err != nil {
+		t.Fatalf("inserting user2: %v", err)
+	}
+
+	// 1. User 1: expired, active -> should be deactivated
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO urls (short_code, long_url, is_active, created_at, expires_at, user_id)
+		VALUES ('u1-exp-1', 'https://example.com/1', true, NOW() - INTERVAL '2 hour', NOW() - INTERVAL '1 hour', $1),
+		       ('u1-exp-2', 'https://example.com/2', true, NOW() - INTERVAL '3 hour', NOW() - INTERVAL '2 hour', $1)
+	`, user1ID)
+	if err != nil {
+		t.Fatalf("inserting user1 expired active: %v", err)
+	}
+
+	// 2. User 1: live, active -> should NOT be deactivated
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO urls (short_code, long_url, is_active, created_at, expires_at, user_id)
+		VALUES ('u1-live', 'https://example.com/live', true, NOW(), NOW() + INTERVAL '1 day', $1)
+	`, user1ID)
+	if err != nil {
+		t.Fatalf("inserting user1 live: %v", err)
+	}
+
+	// 3. User 1: expired, already inactive -> should NOT be returned
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO urls (short_code, long_url, is_active, created_at, expires_at, user_id)
+		VALUES ('u1-already-inact', 'https://example.com/inact', false, NOW() - INTERVAL '4 hour', NOW() - INTERVAL '3 hour', $1)
+	`, user1ID)
+	if err != nil {
+		t.Fatalf("inserting user1 inactive: %v", err)
+	}
+
+	// 4. User 2: expired, active -> should NOT be deactivated
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO urls (short_code, long_url, is_active, created_at, expires_at, user_id)
+		VALUES ('u2-exp', 'https://example.com/u2', true, NOW() - INTERVAL '2 hour', NOW() - INTERVAL '1 hour', $1)
+	`, user2ID)
+	if err != nil {
+		t.Fatalf("inserting user2 expired active: %v", err)
+	}
+
+	// 5. Guest: expired, active -> should NOT be deactivated
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO urls (short_code, long_url, is_active, created_at, expires_at, user_id)
+		VALUES ('guest-exp', 'https://example.com/guest', true, NOW() - INTERVAL '2 hour', NOW() - INTERVAL '1 hour', NULL)
+	`)
+	if err != nil {
+		t.Fatalf("inserting guest expired active: %v", err)
+	}
+
+	codes, err := repo.DeactivateExpired(ctx, user1ID)
+	if err != nil {
+		t.Fatalf("DeactivateExpired failed: %v", err)
+	}
+
+	sort.Strings(codes)
+	expectedCodes := []string{"u1-exp-1", "u1-exp-2"}
+	if len(codes) != len(expectedCodes) {
+		t.Fatalf("expected %d codes, got %d (%v)", len(expectedCodes), len(codes), codes)
+	}
+	for i := range codes {
+		if codes[i] != expectedCodes[i] {
+			t.Fatalf("expected code %s at index %d, got %s", expectedCodes[i], i, codes[i])
+		}
+	}
+
+	// Verify database state for all rows
+	checkActive := func(code string, wantActive bool) {
+		var active bool
+		if err := db.QueryRowContext(ctx, "SELECT is_active FROM urls WHERE short_code = $1", code).Scan(&active); err != nil {
+			t.Fatalf("querying is_active for %s: %v", code, err)
+		}
+		if active != wantActive {
+			t.Fatalf("expected is_active=%v for %s, got %v", wantActive, code, active)
+		}
+	}
+
+	checkActive("u1-exp-1", false)
+	checkActive("u1-exp-2", false)
+	checkActive("u1-live", true)
+	checkActive("u1-already-inact", false)
+	checkActive("u2-exp", true)
+	checkActive("guest-exp", true)
+}

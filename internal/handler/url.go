@@ -210,6 +210,28 @@ func (h *URLHandler) GetUserURLs(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
+type DeleteExpiredResponse struct {
+	Deleted int64 `json:"deleted"`
+}
+
+func (h *URLHandler) DeleteExpired(w http.ResponseWriter, r *http.Request) {
+	userID := userIDFromContext(r.Context())
+	if userID == nil {
+		writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+
+	count, err := h.serv.DeleteExpired(r.Context(), *userID)
+	if err != nil {
+		writeJSONError(w, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(DeleteExpiredResponse{Deleted: count})
+}
+
 func writeJSONError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

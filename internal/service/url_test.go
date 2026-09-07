@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -194,9 +195,25 @@ func (f *fakeRepo) RecycleExpiredGuestCode(ctx context.Context, shortCode string
 	return true, nil
 }
 
+func (f *fakeRepo) DeactivateExpired(ctx context.Context, userID int64) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	var deactivated []string
+	now := time.Now()
+	for _, row := range f.rows {
+		if row.UserID != nil && *row.UserID == userID && row.IsActive && row.ExpiresAt != nil && row.ExpiresAt.Before(now) {
+			row.IsActive = false
+			deactivated = append(deactivated, row.ShortCode)
+		}
+	}
+	return deactivated, nil
+}
+
 type fakeCache struct {
-	mu   sync.Mutex
-	data map[string]string
+	mu          sync.Mutex
+	data        map[string]string
+	deletedKeys []string
 
 	getCalls atomic.Int64
 	setCalls atomic.Int64
@@ -245,8 +262,15 @@ func (f *fakeCache) Delete(ctx context.Context, code string) error {
 
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.deletedKeys = append(f.deletedKeys, code)
 	delete(f.data, code)
 	return nil
+}
+
+func (f *fakeCache) getDeletedKeys() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.deletedKeys...)
 }
 
 func (f *fakeCache) peek(code string) (string, bool) {
@@ -1081,3 +1105,53 @@ func TestDetermineTTL(t *testing.T) {
 }
 
 func ptrTime(t time.Time) *time.Time { return &t }
+
+func TestURLService_DeleteExpired(t *testing.T) {
+	repo := newFakeRepo()
+	cache := newFakeCache()
+	svc := New(repo, cache)
+	ctx := context.Background()
+
+	user1 := int64(1)
+	user2 := int64(2)
+	past := time.Now().Add(-time.Hour)
+	future := time.Now().Add(time.Hour)
+
+	// User 1: 2 expired active links, 1 live active link, 1 already inactive expired link
+	repo.put(&domain.URL{ShortCode: "u1-exp1", UserID: &user1, IsActive: true, ExpiresAt: &past})
+	repo.put(&domain.URL{ShortCode: "u1-exp2", UserID: &user1, IsActive: true, ExpiresAt: &past})
+	repo.put(&domain.URL{ShortCode: "u1-live", UserID: &user1, IsActive: true, ExpiresAt: &future})
+	repo.put(&domain.URL{ShortCode: "u1-inact", UserID: &user1, IsActive: false, ExpiresAt: &past})
+
+	// User 2: 1 expired active link
+	repo.put(&domain.URL{ShortCode: "u2-exp", UserID: &user2, IsActive: true, ExpiresAt: &past})
+
+	// Guest: 1 expired active link
+	repo.put(&domain.URL{ShortCode: "guest-exp", UserID: nil, IsActive: true, ExpiresAt: &past})
+
+	// Prime cache for all codes
+	cache.Set(ctx, "u1-exp1", "https://example.com/1", time.Hour)
+	cache.Set(ctx, "u1-exp2", "https://example.com/2", time.Hour)
+	cache.Set(ctx, "u1-live", "https://example.com/live", time.Hour)
+	cache.Set(ctx, "u2-exp", "https://example.com/u2", time.Hour)
+
+	count, err := svc.DeleteExpired(ctx, user1)
+	if err != nil {
+		t.Fatalf("DeleteExpired failed: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("expected count 2, got %d", count)
+	}
+
+	deleted := cache.getDeletedKeys()
+	sort.Strings(deleted)
+	expectedDeleted := []string{"u1-exp1", "u1-exp2"}
+	if len(deleted) != len(expectedDeleted) {
+		t.Fatalf("expected %d cache evictions, got %d (%v)", len(expectedDeleted), len(deleted), deleted)
+	}
+	for i := range deleted {
+		if deleted[i] != expectedDeleted[i] {
+			t.Fatalf("expected cache eviction %q at index %d, got %q", expectedDeleted[i], i, deleted[i])
+		}
+	}
+}

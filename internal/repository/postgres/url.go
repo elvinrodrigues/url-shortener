@@ -136,3 +136,30 @@ func (r *URLPostgres) RecycleExpiredGuestCode(ctx context.Context, shortCode str
 	}
 	return count > 0, nil
 }
+
+// DeactivateExpired deactivates all active, expired URLs owned by userID and
+// returns their short codes so the caller can evict them from cache.
+func (r *URLPostgres) DeactivateExpired(ctx context.Context, userID int64) ([]string, error) {
+	query := `UPDATE urls SET is_active = false
+		WHERE user_id = $1 AND is_active = true
+		  AND expires_at IS NOT NULL AND expires_at < NOW()
+		RETURNING short_code`
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("postgres deactivate expired: %w", err)
+	}
+	defer rows.Close()
+
+	var codes []string
+	for rows.Next() {
+		var code string
+		if err := rows.Scan(&code); err != nil {
+			return nil, fmt.Errorf("postgres deactivate expired scan: %w", err)
+		}
+		codes = append(codes, code)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("postgres deactivate expired rows: %w", err)
+	}
+	return codes, nil
+}

@@ -79,6 +79,7 @@ func main() {
 
 	mux.Handle("GET /stats/{code}", auth(handler.RequireAuth(http.HandlerFunc(h.GetStats))))
 	mux.Handle("GET /user/urls", auth(handler.RequireAuth(http.HandlerFunc(h.GetUserURLs))))
+	mux.Handle("DELETE /user/urls/expired", auth(handler.RequireAuth(http.HandlerFunc(h.DeleteExpired))))
 
 	logging := handler.LoggingMiddleware(logger, ipResolver)
 

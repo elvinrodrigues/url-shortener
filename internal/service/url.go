@@ -264,6 +264,22 @@ func (s *urlService) Delete(ctx context.Context, code string, userID int64) erro
 
 	return nil
 }
+
+func (s *urlService) DeleteExpired(ctx context.Context, userID int64) (int64, error) {
+	logger := ctxlog.GetLogger(ctx, slog.Default())
+
+	codes, err := s.repo.DeactivateExpired(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, code := range codes {
+		s.cacheDelete(ctx, logger, code)
+	}
+
+	return int64(len(codes)), nil
+}
+
 func (s *urlService) GetStats(ctx context.Context, code string, userID int64) (*domain.URL, error) {
 	url, err := s.repo.GetStats(ctx, code)
 

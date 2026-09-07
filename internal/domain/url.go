@@ -33,12 +33,16 @@ type URLRepository interface {
 	// before expiredBefore. The cutoff is supplied by the caller rather than
 	// computed here so the quarantine window stays a service-layer policy.
 	RecycleExpiredGuestCode(ctx context.Context, shortCode string, expiredBefore time.Time) (bool, error)
+	// DeactivateExpired batch-deactivates active expired links belonging to userID,
+	// returning the short codes of all affected rows for cache invalidation.
+	DeactivateExpired(ctx context.Context, userID int64) ([]string, error)
 }
 
 type URLService interface {
 	Shorten(ctx context.Context, req CreateURLRequest) (*URL, error)
 	Redirect(ctx context.Context, code string) (string, error)
 	Delete(ctx context.Context, code string, userID int64) error
+	DeleteExpired(ctx context.Context, userID int64) (int64, error)
 	GetStats(ctx context.Context, code string, userID int64) (*URL, error)
 	GetUserURLs(ctx context.Context, userID int64) ([]*URL, error)
 }

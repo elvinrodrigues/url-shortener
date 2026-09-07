@@ -16,15 +16,17 @@ import (
 
 // fakeService lets each test drive one method's outcome without a database.
 type fakeService struct {
-	shorten     func(domain.CreateURLRequest) (*domain.URL, error)
-	redirect    func(string) (string, error)
-	deleteFn    func(string, int64) error
-	getStats    func(string, int64) (*domain.URL, error)
-	getUserURLs func(int64) ([]*domain.URL, error)
+	shorten         func(domain.CreateURLRequest) (*domain.URL, error)
+	redirect        func(string) (string, error)
+	deleteFn        func(string, int64) error
+	deleteExpiredFn func(int64) (int64, error)
+	getStats        func(string, int64) (*domain.URL, error)
+	getUserURLs     func(int64) ([]*domain.URL, error)
 
-	lastShortenRequest domain.CreateURLRequest
-	lastDeleteUserID   int64
-	lastStatsUserID    int64
+	lastShortenRequest      domain.CreateURLRequest
+	lastDeleteUserID        int64
+	lastDeleteExpiredUserID int64
+	lastStatsUserID         int64
 }
 
 func (f *fakeService) Shorten(_ context.Context, req domain.CreateURLRequest) (*domain.URL, error) {
@@ -48,6 +50,14 @@ func (f *fakeService) Delete(_ context.Context, code string, userID int64) error
 		return f.deleteFn(code, userID)
 	}
 	return nil
+}
+
+func (f *fakeService) DeleteExpired(_ context.Context, userID int64) (int64, error) {
+	f.lastDeleteExpiredUserID = userID
+	if f.deleteExpiredFn != nil {
+		return f.deleteExpiredFn(userID)
+	}
+	return 0, nil
 }
 
 func (f *fakeService) GetStats(_ context.Context, code string, userID int64) (*domain.URL, error) {
@@ -82,6 +92,7 @@ func newTestMux(t *testing.T, svc domain.URLService) http.Handler {
 	mux.Handle("DELETE /{code}", auth(RequireAuth(http.HandlerFunc(h.Delete))))
 	mux.Handle("GET /stats/{code}", auth(RequireAuth(http.HandlerFunc(h.GetStats))))
 	mux.Handle("GET /user/urls", auth(RequireAuth(http.HandlerFunc(h.GetUserURLs))))
+	mux.Handle("DELETE /user/urls/expired", auth(RequireAuth(http.HandlerFunc(h.DeleteExpired))))
 	return mux
 }
 
@@ -360,6 +371,7 @@ func TestProtectedRoutes_RequireAuthentication(t *testing.T) {
 		{"delete", http.MethodDelete, "/abc1234"},
 		{"stats", http.MethodGet, "/stats/abc1234"},
 		{"user urls", http.MethodGet, "/user/urls"},
+		{"delete expired", http.MethodDelete, "/user/urls/expired"},
 	}
 
 	for _, route := range routes {
@@ -525,4 +537,86 @@ func TestCORSMiddleware_ShortCircuitsPreflight(t *testing.T) {
 	if got := rec.Header().Get("Access-Control-Allow-Methods"); !strings.Contains(got, "DELETE") {
 		t.Fatalf("got allowed methods %q", got)
 	}
+}
+
+func TestDeleteExpired(t *testing.T) {
+	t.Run("success returns 200 with deleted count", func(t *testing.T) {
+		svc := &fakeService{
+			deleteExpiredFn: func(userID int64) (int64, error) {
+				if userID != 42 {
+					t.Fatalf("expected userID 42, got %d", userID)
+				}
+				return 3, nil
+			},
+		}
+		mux := newTestMux(t, svc)
+
+		req := httptest.NewRequest(http.MethodDelete, "/user/urls/expired", nil)
+		req.Header.Set("Authorization", "Bearer "+tokenFor(t, 42))
+		rec := httptest.NewRecorder()
+
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status 200, got %d (body: %s)", rec.Code, rec.Body.String())
+		}
+
+		var resp DeleteExpiredResponse
+		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+			t.Fatalf("decoding response: %v", err)
+		}
+		if resp.Deleted != 3 {
+			t.Fatalf("expected deleted count 3, got %d", resp.Deleted)
+		}
+	})
+
+	t.Run("unauthenticated request returns 401 via middleware", func(t *testing.T) {
+		svc := &fakeService{}
+		mux := newTestMux(t, svc)
+
+		req := httptest.NewRequest(http.MethodDelete, "/user/urls/expired", nil)
+		rec := httptest.NewRecorder()
+
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected status 401, got %d", rec.Code)
+		}
+	})
+
+	t.Run("direct handler invocation without userID context returns 401", func(t *testing.T) {
+		svc := &fakeService{}
+		h := New(svc, "http://short.test")
+
+		req := httptest.NewRequest(http.MethodDelete, "/user/urls/expired", nil)
+		rec := httptest.NewRecorder()
+
+		h.DeleteExpired(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected status 401, got %d", rec.Code)
+		}
+		if got := errorMessage(t, rec.Body.String()); got != "Unauthorized" {
+			t.Fatalf("got error %q, want Unauthorized", got)
+		}
+	})
+
+	t.Run("service error returns 500", func(t *testing.T) {
+		svc := &fakeService{
+			deleteExpiredFn: func(userID int64) (int64, error) {
+				return 0, errors.New("db error")
+			},
+		}
+		mux := newTestMux(t, svc)
+
+		req := httptest.NewRequest(http.MethodDelete, "/user/urls/expired", nil)
+		req.Header.Set("Authorization", "Bearer "+tokenFor(t, 42))
+		rec := httptest.NewRecorder()
+
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Fatalf("expected status 500, got %d", rec.Code)
+		}
+	})
 }
