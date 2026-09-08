@@ -78,18 +78,18 @@ The URL Shortener is a high-throughput, low-latency URL shortening and redirecti
 
 ```sql
 -- 1. Redirect Hot Path Index (Covering & Partial)
-CREATE UNIQUE INDEX idx_urls_short_code 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_urls_short_code 
 ON urls (short_code) 
 INCLUDE (long_url, expires_at, is_active) 
 WHERE is_active = true;
 
 -- 2. User Dashboard Query Index
-CREATE INDEX idx_urls_user_created 
+CREATE INDEX IF NOT EXISTS idx_urls_user_created 
 ON urls (user_id, created_at DESC) 
 WHERE is_active = true;
 
 -- 3. Background Expiry Cleanup Index
-CREATE INDEX idx_urls_expires_at 
+CREATE INDEX IF NOT EXISTS idx_urls_expires_at 
 ON urls (expires_at) 
 WHERE expires_at IS NOT NULL AND is_active = true;
 ```
@@ -289,6 +289,9 @@ with no mocking library and no database.
 | `internal/repository/postgres` (deactivate semantics) | `Deactivate` on expired-but-active link deactivates the row; re-deleting an inactive link is an idempotent no-op returning `nil`; cross-user delete returns `ErrURLNotFound` (IDOR guard); freed alias can be reclaimed |
 | `internal/service` (batch purge) | `DeleteExpired` returns exact count of user's expired active links and synchronously evicts each affected short code from cache, while preserving other users' and live links |
 | `internal/handler` (batch purge) | `DELETE /user/urls/expired` returns 200 with deleted count for authenticated user, and 401 when token is missing |
+| `internal/migrate` | A fresh schema applies and records every migration in filename order; a second run is a clean no-op; an already-recorded file is skipped even when its contents are invalid SQL |
+| `internal/migrate` (upgrade path) | A database created by `docker-entrypoint-initdb.d` (tables present, no `schema_migrations`) migrates cleanly — the case that fails loudly if migration `001` is not idempotent |
+| `internal/migrate` (atomicity) | A failing migration leaves no partial state and no tracking row; and when only the `schema_migrations` insert fails, the migration's DDL is rolled back with it — the property the explicit transaction exists for (§7.8) |
 
 ---
 
@@ -300,11 +303,12 @@ with no mocking library and no database.
 4. **Unbatched Click Writes**: Each redirect spawns a detached goroutine issuing its own `UPDATE`, with no worker pool, no backpressure, and no coalescing — the 60-second soak in §6 issued 195,357 individual updates. Batching is designed but not built (§8).
 5. **Analytics Durability**: Because increments are detached (`context.Background()`), an abrupt `SIGKILL` or power loss drops whatever was in flight. Graceful shutdown drains HTTP handlers but does not wait on these goroutines.
 6. **No Expiry Reaper**: `idx_urls_expires_at` exists to support a background cleanup worker that has not been written; expired rows are filtered at read time and never reclaimed automatically in background (only on collision via guest recycling).
-7. **Schema Migrations**: Migrations are raw `.sql` files applied by the Postgres entrypoint on first boot. There is no version table, no rollback, and no mechanism for applying a migration to an already-initialized database.
-8. **No Transactions**: Every operation is a single statement, so none currently require one. Any future multi-statement invariant would need explicit transaction handling.
-9. **Permissive CORS**: `Access-Control-Allow-Origin: *`. Acceptable for a public read API with token-bearing writes, but it is not an origin restriction.
-10. **Google Key Set Availability**: ID tokens are verified locally (§5.9), so a sign-in no longer needs Google to answer. The published key set is still fetched on a cold start and on rotation; if that fetch fails while the cache is stale, a cached key is used rather than failing every sign-in — the key remains cryptographically valid, only its freshness guarantee has lapsed. A process that starts during a total Google outage cannot authenticate anyone until one fetch succeeds.
-11. **Key Set Is Per-Process**: the cache lives in memory, so each instance fetches its own copy and a rotation is picked up independently per instance. At this scale that is a handful of requests per rotation; a shared cache would only matter at a much larger fleet size.
+7. **Schema Migrations**: Migrations are embedded via Go's `//go:embed` into `migrations.FS` and applied by a dedicated migration runner (`internal/migrate.Apply`) tracked via the `schema_migrations` table. Migration execution is an explicit deploy step (`DATABASE_URL=... go run ./cmd/migrate`) rather than an automated server startup hook to prevent DDL race conditions across concurrent application instances and to isolate schema change failures before traffic begins. However, there is still no rollback / down-migration story (migrations are forward-only).
+8. **No Application Transactions**: Core HTTP operations remain single statements, so handlers and repositories require no multi-statement transactions. The sole transactional boundary in the codebase exists in the migration runner (`internal/migrate`), which wraps each migration file and its `schema_migrations` record in an explicit database transaction to ensure all-or-nothing atomicity on failure. Note that the DDL alone would roll back regardless — `lib/pq` sends a multi-statement `Exec` over the simple query protocol, which Postgres already wraps implicitly. What the explicit transaction adds is atomicity *between* the DDL and its tracking row, closing the window where a migration commits but is never recorded and is therefore re-applied on the next run.
+9. **Migrations Cannot Use `CONCURRENTLY`**: because each migration runs inside a transaction (§7.8), statements Postgres forbids in a transaction block — most notably `CREATE INDEX CONCURRENTLY` and `DROP INDEX CONCURRENTLY` — will fail. This matters for a table as index-heavy as `urls`: building an index on a large table without `CONCURRENTLY` holds a write lock for the duration. A migration needing it would have to run outside this runner, or the runner would need a per-file opt-out of the transaction wrapper.
+10. **Permissive CORS**: `Access-Control-Allow-Origin: *`. Acceptable for a public read API with token-bearing writes, but it is not an origin restriction.
+11. **Google Key Set Availability**: ID tokens are verified locally (§5.9), so a sign-in no longer needs Google to answer. The published key set is still fetched on a cold start and on rotation; if that fetch fails while the cache is stale, a cached key is used rather than failing every sign-in — the key remains cryptographically valid, only its freshness guarantee has lapsed. A process that starts during a total Google outage cannot authenticate anyone until one fetch succeeds.
+12. **Key Set Is Per-Process**: the cache lives in memory, so each instance fetches its own copy and a rotation is picked up independently per instance. At this scale that is a handful of requests per rotation; a shared cache would only matter at a much larger fleet size.
 
 ---
 

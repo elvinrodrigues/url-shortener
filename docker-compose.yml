@@ -11,6 +11,9 @@ services:
       timeout: 5s
       retries: 5
     volumes:
+      # docker-entrypoint-initdb.d executes only when initializing a fresh/empty volume.
+      # For existing database volumes, new migrations must be applied using cmd/migrate:
+      #   DATABASE_URL=postgres://appuser:password123@localhost:5432/urlshortener?sslmode=disable go run ./cmd/migrate
       - ./migrations:/docker-entrypoint-initdb.d
 
   redis:
