@@ -107,7 +107,7 @@ WHERE expires_at IS NOT NULL AND is_active = true;
 Creates a shortened URL mapping.
 - `201 Created`: Successfully generated. Returns JSON response with `short_url` and `short_code` alongside a `Location` header.
 - `400 Bad Request`: Malformed JSON syntax or empty body.
-- `422 Unprocessable Entity`: Invalid URL structure or unsupported scheme (e.g. non-http/https).
+- `422 Unprocessable Entity`: Invalid URL structure, unsupported scheme (e.g. non-http/https), or a destination whose host is this deployment's own `BASE_URL` (see §5.10).
 - `409 Conflict`: Custom code already in use.
 - `429 Too Many Requests`: Client IP exceeded sliding-window rate limit.
 - `503 Service Unavailable`: Code generation collision retry budget exhausted (5 attempts).
@@ -135,6 +135,18 @@ Batch deactivates all active, expired URLs owned by the authenticated user and e
 - `200 OK`: Returns count of purged links (`{"deleted": <count>}`).
 - `401 Unauthorized`: Missing or invalid Bearer token.
 - `500 Internal Server Error`: Database or internal server failure.
+
+### `GET /health` — liveness
+Reports only that the process is alive and serving HTTP. It performs **no** dependency checks, deliberately.
+- `200 OK`: always, while the process can answer.
+
+This is the endpoint an external uptime monitor should poll. The production deployment is kept warm by exactly such a monitor, and the hosting platform may restart the container on repeated failures — so making this probe depend on Postgres or Redis would convert a transient backend blip into a restart loop and a spurious alert. Dependency state belongs on `/ready`.
+
+### `GET /ready` — readiness
+Probes each backing service with a 2-second budget and grades the result by how much it actually affects serving traffic.
+- `200 OK` — `{"status":"ready","postgres":"ok","redis":"ok"}`.
+- `200 OK` — `{"status":"degraded","postgres":"ok","redis":"error"}`: Redis is unreachable. Still ready: the redirect path falls back to PostgreSQL (§5.3), so every request can be served, just more slowly. Returning 503 here would remove a working instance from rotation.
+- `503 Service Unavailable` — `{"status":"unavailable","postgres":"error",...}`: PostgreSQL is unreachable. No redirect can be resolved, so the instance is genuinely not ready. This verdict is never downgraded by a subsequent cache failure.
 
 ---
 
@@ -212,6 +224,14 @@ Batch deactivates all active, expired URLs owned by the authenticated user and e
 - **Concurrency**: a known key from a fresh set is served under a read lock, so ordinary sign-ins never queue behind someone else's refresh. Only the refresh path takes the write lock, and it holds it across the fetch so N concurrent misses collapse into one outbound request; the fetch is detached with `context.WithoutCancel` and given its own timeout, because one client disconnecting must not fail the shared refresh for everyone queued behind it — the same footgun the redirect path avoids in §5.5.
 - **Degradation**: if a refresh fails, or is throttled, while a matching key is still cached, the cached key is used. Freshness is the only thing lost; the signature check is unaffected.
 - `validateGoogleClaims` (§5.7) is unchanged and still owns `iss`/`aud`/`sub`/`email`/`email_verified`. It already accepted `email_verified` as both a bool and the string `"true"`, so the switch from tokeninfo's stringified claims to a real ID token's booleans needed no change.
+
+### 5.10 Rejecting Self-Referential Destinations
+- **Decision**: `Shorten` rejects any destination whose host matches this deployment's `BASE_URL`, returning `ErrURLSelfReferential` → `422`.
+- **Why**: a short link pointing back at the shortener redirects into itself. Each hop costs a Redis lookup, a PostgreSQL read on a miss, and a detached click-increment write, so a handful of chained links is a self-inflicted amplification loop — and the link is useless to whoever created it regardless.
+- **Comparison is host-only**: `url.Hostname()` drops the port deliberately, since a link to this host on any port still points at us and `BASE_URL` carries a port only in local development. Matching is case-insensitive.
+- **It is a host equality check, not a substring match**: `https://trimto.me.evil.com`, `https://sub.trimto.me` and `https://example.com/trimto.me` all remain shortenable. Only the exact host is refused.
+- **Escape hatch**: an empty `BASE_URL` disables the check rather than rejecting everything. Unit tests rely on this; production always sets it.
+- **Not covered**: this blocks loops back to *this* service only. It is not a general SSRF or private-address guard — `http://10.0.0.1/` and `http://169.254.169.254/` are still accepted. The server never fetches a destination, so there is no request forgery today, but that changes the moment link previews are added.
 
 ---
 
@@ -292,6 +312,8 @@ with no mocking library and no database.
 | `internal/migrate` | A fresh schema applies and records every migration in filename order; a second run is a clean no-op; an already-recorded file is skipped even when its contents are invalid SQL |
 | `internal/migrate` (upgrade path) | A database created by `docker-entrypoint-initdb.d` (tables present, no `schema_migrations`) migrates cleanly — the case that fails loudly if migration `001` is not idempotent |
 | `internal/migrate` (atomicity) | A failing migration leaves no partial state and no tracking row; and when only the `schema_migrations` insert fails, the migration's DDL is rolled back with it — the property the explicit transaction exists for (§7.8) |
+| `internal/service` (self-reference) | Destinations on this deployment's own host are refused across scheme, case and port variants and never reach the repository; look-alike hosts (`sub.`, `.evil.com`, path mentions) stay shortenable; an unset `BASE_URL` disables the check |
+| `internal/handler` (health probes) | `/health` answers 200 with **both** dependencies failing — the property that keeps an uptime monitor and platform restarts from reacting to a backend blip; `/ready` returns 200/`ready`, 200/`degraded` when only Redis is down, 503/`unavailable` when Postgres is down, and does not let a cache failure downgrade the database verdict |
 
 ---
 
