@@ -304,7 +304,7 @@ func waitFor(t *testing.T, want int64, counter *atomic.Int64) {
 func newTestService() (domain.URLService, *fakeRepo, *fakeCache) {
 	repo := newFakeRepo()
 	cache := newFakeCache()
-	return New(repo, cache), repo, cache
+	return New(repo, cache, ""), repo, cache
 }
 
 // ---------------------------------------------------------------------------
@@ -896,7 +896,7 @@ func TestRedirect_ExpiredLinkIsGone(t *testing.T) {
 
 	repo := newFakeRepo()
 	repo.put(&domain.URL{ShortCode: "stale", LongURL: "https://example.com", ExpiresAt: &repoExpiry, IsActive: true})
-	svc = New(repo, cache)
+	svc = New(repo, cache, "")
 
 	_, err := svc.Redirect(context.Background(), "stale")
 
@@ -972,7 +972,7 @@ func TestRedirect_FallsBackToDatabaseOnCacheOutage(t *testing.T) {
 	cache.getErr = errors.New("dial tcp: connection refused")
 	cache.setErr = errors.New("dial tcp: connection refused")
 
-	svc := New(repo, cache)
+	svc := New(repo, cache, "")
 
 	got, err := svc.Redirect(context.Background(), "abc1234")
 	if err != nil {
@@ -999,7 +999,7 @@ func TestDelete_EvictsCacheSynchronously(t *testing.T) {
 	cache := newFakeCache()
 	cache.seed("mine", "https://example.com")
 
-	svc := New(repo, cache)
+	svc := New(repo, cache, "")
 
 	if err := svc.Delete(context.Background(), "mine", owner); err != nil {
 		t.Fatalf("Delete: %v", err)
@@ -1021,7 +1021,7 @@ func TestDelete_ScopesToOwner(t *testing.T) {
 	cache := newFakeCache()
 	cache.seed("mine", "https://example.com")
 
-	svc := New(repo, cache)
+	svc := New(repo, cache, "")
 
 	err := svc.Delete(context.Background(), "mine", attacker)
 
@@ -1044,7 +1044,7 @@ func TestGetStats_EnforcesOwnership(t *testing.T) {
 	repo.put(&domain.URL{ShortCode: "mine", LongURL: "https://example.com", IsActive: true, UserID: &owner})
 	repo.put(&domain.URL{ShortCode: "guest", LongURL: "https://example.com", IsActive: true})
 
-	svc := New(repo, newFakeCache())
+	svc := New(repo, newFakeCache(), "")
 
 	t.Run("owner", func(t *testing.T) {
 		url, err := svc.GetStats(context.Background(), "mine", owner)
@@ -1109,7 +1109,7 @@ func ptrTime(t time.Time) *time.Time { return &t }
 func TestURLService_DeleteExpired(t *testing.T) {
 	repo := newFakeRepo()
 	cache := newFakeCache()
-	svc := New(repo, cache)
+	svc := New(repo, cache, "")
 	ctx := context.Background()
 
 	user1 := int64(1)
@@ -1154,4 +1154,73 @@ func TestURLService_DeleteExpired(t *testing.T) {
 			t.Fatalf("expected cache eviction %q at index %d, got %q", expectedDeleted[i], i, deleted[i])
 		}
 	}
+}
+
+// TestShorten_RejectsSelfReferentialURLs pins the loop guard. A destination on
+// this deployment's own host redirects back into the service: every hop costs a
+// cache lookup, a database read and a detached click increment.
+func TestShorten_RejectsSelfReferentialURLs(t *testing.T) {
+	const base = "https://trimto.me"
+
+	rejected := []struct {
+		name string
+		url  string
+	}{
+		{"bare host", "https://trimto.me"},
+		{"short link on our host", "https://trimto.me/abc1234"},
+		{"http instead of https", "http://trimto.me/abc1234"},
+		{"case-insensitive host", "https://TrimTo.ME/abc1234"},
+		{"different port, same host", "https://trimto.me:8443/abc1234"},
+		{"with query and fragment", "https://trimto.me/abc?x=1#y"},
+	}
+
+	for _, tc := range rejected {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, repo, _ := newTestServiceWithBase(base)
+
+			_, err := svc.Shorten(context.Background(), domain.CreateURLRequest{LongURL: tc.url})
+
+			if !errors.Is(err, domain.ErrURLSelfReferential) {
+				t.Fatalf("got %v, want ErrURLSelfReferential", err)
+			}
+			if got := repo.createCalls.Load(); got != 0 {
+				t.Fatalf("a self-referential URL reached the repository %d times", got)
+			}
+		})
+	}
+
+	// Hosts that merely resemble ours must still be shortenable — the check is a
+	// host comparison, not a substring match.
+	accepted := []string{
+		"https://example.com/trimto.me",
+		"https://nottrimto.me/x",
+		"https://trimto.me.evil.com/x",
+		"https://sub.trimto.me/x",
+	}
+
+	for _, u := range accepted {
+		t.Run("accepts "+u, func(t *testing.T) {
+			svc, _, _ := newTestServiceWithBase(base)
+
+			if _, err := svc.Shorten(context.Background(), domain.CreateURLRequest{LongURL: u}); err != nil {
+				t.Fatalf("legitimate destination %q was rejected: %v", u, err)
+			}
+		})
+	}
+}
+
+// TestShorten_SelfCheckDisabledWithoutBaseURL documents the escape hatch: an
+// unset BASE_URL disables the comparison rather than rejecting everything.
+func TestShorten_SelfCheckDisabledWithoutBaseURL(t *testing.T) {
+	svc, _, _ := newTestService()
+
+	if _, err := svc.Shorten(context.Background(), domain.CreateURLRequest{LongURL: "https://trimto.me/abc"}); err != nil {
+		t.Fatalf("with no BASE_URL configured nothing is self-referential, got %v", err)
+	}
+}
+
+func newTestServiceWithBase(baseURL string) (domain.URLService, *fakeRepo, *fakeCache) {
+	repo := newFakeRepo()
+	cache := newFakeCache()
+	return New(repo, cache, baseURL), repo, cache
 }

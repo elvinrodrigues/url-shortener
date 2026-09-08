@@ -253,7 +253,7 @@ func TestAliceBob_OwnershipInversionResolved(t *testing.T) {
 		t.Fatalf("creating bob: %v", err)
 	}
 
-	svc := service.New(repo, noopCache{})
+	svc := service.New(repo, noopCache{}, "")
 	const code = "launch"
 
 	// 1. Alice creates "launch"

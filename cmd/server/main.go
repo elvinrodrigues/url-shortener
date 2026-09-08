@@ -53,7 +53,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	serv := service.New(repo, urlCache)
+	serv := service.New(repo, urlCache, cfg.BaseURL)
 
 	h := handler.New(serv, cfg.BaseURL)
 
@@ -65,9 +65,19 @@ func main() {
 	authService := service.NewAuthService(repo, jwtSecret, cfg.GoogleClientID)
 	authHandler := handler.NewAuthHandler(authService)
 
+	// /health stays deliberately dependency-free: the uptime monitor pings it to
+	// keep this instance from idling, and the platform may restart the container
+	// on repeated failures. Probing Postgres or Redis here would turn a transient
+	// cache blip into a restart loop. /ready is where dependencies are reported.
+	health := handler.NewHealthHandler(
+		func(ctx context.Context) error { return db.PingContext(ctx) },
+		func(ctx context.Context) error { return urlCache.Client().Ping(ctx).Err() },
+	)
+
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /health", h.HealthCheck)
+	mux.HandleFunc("GET /health", health.Live)
+	mux.HandleFunc("GET /ready", health.Ready)
 	mux.HandleFunc("GET /{code}", h.Redirect)
 	mux.HandleFunc("POST /auth/google", authHandler.GoogleAuth)
 

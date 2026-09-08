@@ -42,10 +42,23 @@ type urlService struct {
 	repo  domain.URLRepository
 	cache domain.URLCache
 	sf    singleflight.Group
+
+	// selfHost is the hostname of this deployment's BASE_URL, lowercased. A link
+	// whose destination resolves to it would redirect back into the shortener:
+	// each hop costs a cache lookup, a database read and a click increment, and a
+	// chain of them is a self-inflicted amplification loop. Empty disables the
+	// check, which is what unit tests use.
+	selfHost string
 }
 
-func New(r domain.URLRepository, c domain.URLCache) domain.URLService {
-	return &urlService{repo: r, cache: c}
+func New(r domain.URLRepository, c domain.URLCache, baseURL string) domain.URLService {
+	s := &urlService{repo: r, cache: c}
+	// Hostname() drops the port deliberately: a link to this host on any port is
+	// still pointing at us, and BASE_URL carries a port only in local development.
+	if u, err := url.Parse(baseURL); err == nil {
+		s.selfHost = strings.ToLower(u.Hostname())
+	}
+	return s
 }
 
 // cacheSet writes through to the cache on a best-effort basis. Cache failures are
@@ -129,7 +142,7 @@ func (s *urlService) reclaimExpiredGuestAlias(ctx context.Context, logger *slog.
 func (s *urlService) Shorten(ctx context.Context, req domain.CreateURLRequest) (*domain.URL, error) {
 	logger := ctxlog.GetLogger(ctx, slog.Default())
 
-	if err := validateURL(req.LongURL); err != nil {
+	if err := s.validateURL(req.LongURL); err != nil {
 		return nil, err
 	}
 
@@ -298,7 +311,7 @@ func (s *urlService) GetUserURLs(ctx context.Context, userID int64) ([]*domain.U
 	return s.repo.GetUserURLs(ctx, userID)
 }
 
-func validateURL(longURL string) error {
+func (s *urlService) validateURL(longURL string) error {
 	if longURL == "" {
 		return domain.ErrURLInvalid
 	}
@@ -306,6 +319,14 @@ func validateURL(longURL string) error {
 
 	if err != nil || !(u.Scheme == "http" || u.Scheme == "https") || u.Host == "" {
 		return domain.ErrURLInvalid
+	}
+
+	// A destination on our own host redirects back into this service. Every hop
+	// costs a cache lookup, a database read and a detached click increment, so a
+	// short chain of them is an amplification loop pointed at ourselves — and the
+	// link is useless to the person creating it either way.
+	if s.selfHost != "" && strings.EqualFold(u.Hostname(), s.selfHost) {
+		return domain.ErrURLSelfReferential
 	}
 	return nil
 }

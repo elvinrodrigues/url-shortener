@@ -62,6 +62,8 @@ func (h *URLHandler) Shorten(w http.ResponseWriter, r *http.Request) {
 			writeJSONError(w, http.StatusConflict, "Short code already in use")
 		case errors.Is(err, domain.ErrURLInvalid):
 			writeJSONError(w, http.StatusUnprocessableEntity, "Invalid URL provided")
+		case errors.Is(err, domain.ErrURLSelfReferential):
+			writeJSONError(w, http.StatusUnprocessableEntity, "That link already points at this shortener")
 		case errors.Is(err, domain.ErrCustomCodeInvalid):
 			writeJSONError(w, http.StatusUnprocessableEntity, "Invalid custom code format")
 		case errors.Is(err, domain.ErrCustomCodeReserved):

@@ -7,6 +7,7 @@ var (
 	ErrURLDuplicate       = errors.New("url: duplicate short code")
 	ErrURLExpired         = errors.New("url: expired")
 	ErrURLInvalid         = errors.New("url: invalid")
+	ErrURLSelfReferential = errors.New("url: destination points back at this shortener")
 	ErrURLForbidden       = errors.New("url: forbidden")
 	ErrURLShortenFailed   = errors.New("url: short code generation failed")
 	ErrCustomCodeInvalid  = errors.New("url: invalid custom code")
