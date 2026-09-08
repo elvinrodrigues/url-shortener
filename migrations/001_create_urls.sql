@@ -10,15 +10,15 @@ CREATE TABLE IF NOT EXISTS urls(
     CONSTRAINT urls_long_url_not_empty CHECK (long_url != '')
 );
 
-CREATE UNIQUE INDEX idx_urls_short_code
+CREATE UNIQUE INDEX IF NOT EXISTS idx_urls_short_code
     ON urls(short_code)
     INCLUDE (long_url, expires_at, is_active)
     WHERE is_active = true;
 
-CREATE INDEX idx_urls_user_created
+CREATE INDEX IF NOT EXISTS idx_urls_user_created
     ON urls(user_id, created_at DESC)
     WHERE is_active = true;
 
-CREATE INDEX idx_urls_expires_at
+CREATE INDEX IF NOT EXISTS idx_urls_expires_at
     ON urls(expires_at)
     WHERE expires_at IS NOT NULL AND is_active = true;
