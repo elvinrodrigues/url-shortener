@@ -7,92 +7,17 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/elvinrodrigues/url-shortener/internal/domain"
+	"github.com/elvinrodrigues/url-shortener/internal/migrate"
 	"github.com/elvinrodrigues/url-shortener/internal/service"
-	"github.com/lib/pq"
+	"github.com/elvinrodrigues/url-shortener/migrations"
+	_ "github.com/lib/pq"
 )
-
-func findMigrationsDir() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	for {
-		candidate := filepath.Join(dir, "migrations")
-		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return candidate, nil
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return "", errors.New("migrations directory not found")
-}
-
-func applyMigrations(db *sql.DB) error {
-	migDir, err := findMigrationsDir()
-	if err != nil {
-		return fmt.Errorf("finding migrations: %w", err)
-	}
-
-	entries, err := os.ReadDir(migDir)
-	if err != nil {
-		return fmt.Errorf("reading migrations dir: %w", err)
-	}
-
-	var sqlFiles []string
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".sql") {
-			sqlFiles = append(sqlFiles, e.Name())
-		}
-	}
-	sort.Strings(sqlFiles)
-
-	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
-		filename VARCHAR(255) PRIMARY KEY,
-		applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-	);`); err != nil {
-		return fmt.Errorf("creating schema_migrations: %w", err)
-	}
-
-	for _, name := range sqlFiles {
-		var exists bool
-		err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE filename = $1)", name).Scan(&exists)
-		if err != nil {
-			return fmt.Errorf("checking migration %s: %w", name, err)
-		}
-		if exists {
-			continue
-		}
-
-		content, err := os.ReadFile(filepath.Join(migDir, name))
-		if err != nil {
-			return fmt.Errorf("reading migration %s: %w", name, err)
-		}
-
-		if _, err := db.Exec(string(content)); err != nil {
-			var pqErr *pq.Error
-			if errors.As(err, &pqErr) && (pqErr.Code == "42P07" || pqErr.Code == "42710") {
-				// Object or relation already exists
-			} else {
-				return fmt.Errorf("executing migration %s: %w", name, err)
-			}
-		}
-
-		if _, err := db.Exec("INSERT INTO schema_migrations (filename) VALUES ($1) ON CONFLICT DO NOTHING", name); err != nil {
-			return fmt.Errorf("recording migration %s: %w", name, err)
-		}
-	}
-	return nil
-}
 
 func assertTestDatabase(dbURL string) error {
 	u, err := url.Parse(dbURL)
@@ -119,7 +44,7 @@ func TestMain(m *testing.M) {
 			fmt.Fprintf(os.Stderr, "failed to open test database: %v\n", err)
 			os.Exit(1)
 		}
-		if err := applyMigrations(db); err != nil {
+		if _, err := migrate.Apply(context.Background(), db, migrations.FS); err != nil {
 			db.Close()
 			fmt.Fprintf(os.Stderr, "failed to apply migrations: %v\n", err)
 			os.Exit(1)

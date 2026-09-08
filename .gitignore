@@ -9,6 +9,7 @@ docs/
 # ignore new files added under cmd/server/ and cmd/gentoken/.
 /server
 /gentoken
+/migrate
 *.exe
 *.out
 
@@ -17,4 +18,6 @@ cmd/scratch/
 
 dump.rdb
 
-benchmarks
+# Anchored for the same reason as the binaries above: unanchored, this would
+# also match any nested directory named "benchmarks".
+/benchmarks
