@@ -15,9 +15,32 @@ export async function clearAllExpiredLinks({
   onClearGuestHistory,
   onSuccess,
 }: ClearExpiredOptions): Promise<void> {
+  // Expired entries can linger in guest history from before the user signed in.
+  // Returns null when there is no local history to act on, otherwise the count removed.
+  const pruneExpiredGuestHistory = (): number | null => {
+    const saved = localStorage.getItem('slug_guest_history');
+    if (!saved) return null;
+    const history = JSON.parse(saved);
+    if (!Array.isArray(history)) return null;
+
+    const remaining = history.filter((item: any) => !isLinkExpired(item.expires_at));
+    const removedCount = history.length - remaining.length;
+    localStorage.setItem('slug_guest_history', JSON.stringify(remaining));
+
+    if (onClearGuestHistory) {
+      onClearGuestHistory();
+    }
+    return removedCount;
+  };
+
   if (token) {
     try {
       const count = await deleteExpiredURLs(token);
+      try {
+        pruneExpiredGuestHistory();
+      } catch {
+        // A corrupt local history must not fail an otherwise successful server delete.
+      }
       if (onRefresh) {
         await onRefresh();
       }
@@ -35,18 +58,9 @@ export async function clearAllExpiredLinks({
   } else {
     // Guest mode: localStorage only, strictly no API call
     try {
-      const saved = localStorage.getItem('slug_guest_history');
-      if (!saved) return;
-      const history = JSON.parse(saved);
-      if (!Array.isArray(history)) return;
+      const removedCount = pruneExpiredGuestHistory();
+      if (removedCount === null) return;
 
-      const remaining = history.filter((item: any) => !isLinkExpired(item.expires_at));
-      const removedCount = history.length - remaining.length;
-      localStorage.setItem('slug_guest_history', JSON.stringify(remaining));
-
-      if (onClearGuestHistory) {
-        onClearGuestHistory();
-      }
       if (onSuccess) {
         onSuccess(removedCount);
       }

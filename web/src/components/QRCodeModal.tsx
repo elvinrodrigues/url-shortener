@@ -27,6 +27,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
   const [svgMarkup, setSvgMarkup] = useState<string>('');
   const [pngDataUrl, setPngDataUrl] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const targetUrl = url || shortUrl || '';
 
@@ -35,6 +36,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
 
     let isMounted = true;
     setLoading(true);
+    setError('');
 
     const generate = async () => {
       try {
@@ -65,7 +67,10 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
           setLoading(false);
         }
       } catch (err) {
-        if (isMounted) setLoading(false);
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Could not generate QR code');
+          setLoading(false);
+        }
       }
     };
 
@@ -211,7 +216,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
           ) : (
-            <span style={{ fontSize: '12px', color: '#EF4444' }}>Failed to generate QR code</span>
+            <span style={{ fontSize: '12px', color: '#EF4444' }}>{error || 'Failed to generate QR code'}</span>
           )}
         </div>
 
