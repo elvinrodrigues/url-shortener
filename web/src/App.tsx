@@ -9,6 +9,7 @@ import { StatsModal } from './components/StatsModal.tsx';
 import { QRCodeModal } from './components/QRCodeModal.tsx';
 import { CursorGlow } from './components/CursorGlow.tsx';
 import { ToastContainer, type ToastMessage } from './components/Toast.tsx';
+import { NotFound } from './components/NotFound.tsx';
 import {
   checkHealth,
   getUserURLs,
@@ -20,6 +21,18 @@ import {
   type URLStats,
 } from './api.ts';
 import { type LinkItemData } from './components/LinkCard.tsx';
+
+const resolveView = (): 'home' | 'links' | 'notfound' => {
+  const pathname = window.location.pathname.toLowerCase();
+  const hash = window.location.hash.toLowerCase();
+  if (pathname === '/dashboard' || pathname === '/links' || hash === '#dashboard' || hash === '#links') {
+    return 'links';
+  }
+  if (pathname === '/' || pathname === '') {
+    return 'home';
+  }
+  return 'notfound';
+};
 
 export const App: React.FC = () => {
   const [darkMode, setDarkMode] = useState<boolean>(() => {
@@ -39,15 +52,8 @@ export const App: React.FC = () => {
     }
   });
 
-  // Current view state ('home' = creator + top 5 links, 'links' = dedicated /dashboard)
-  const [currentView, setCurrentView] = useState<'home' | 'links'>(() => {
-    const pathname = window.location.pathname.toLowerCase();
-    const hash = window.location.hash.toLowerCase();
-    if (pathname === '/dashboard' || pathname === '/links' || hash === '#dashboard' || hash === '#links') {
-      return 'links';
-    }
-    return 'home';
-  });
+  // Current view state ('home' = creator + top 5 links, 'links' = dedicated /dashboard, 'notfound' = 404)
+  const [currentView, setCurrentView] = useState<'home' | 'links' | 'notfound'>(resolveView);
 
   const [userLinks, setUserLinks] = useState<URLStats[]>([]);
   const [guestHistory, setGuestHistory] = useState<HistoryItem[]>(() => {
@@ -80,13 +86,7 @@ export const App: React.FC = () => {
   // Handle browser popstate
   useEffect(() => {
     const handleLocationChange = () => {
-      const pathname = window.location.pathname.toLowerCase();
-      const hash = window.location.hash.toLowerCase();
-      if (pathname === '/dashboard' || pathname === '/links' || hash === '#dashboard' || hash === '#links') {
-        setCurrentView('links');
-      } else {
-        setCurrentView('home');
-      }
+      setCurrentView(resolveView());
     };
 
     window.addEventListener('popstate', handleLocationChange);
@@ -130,6 +130,15 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  const handleSessionExpired = () => {
+    setToken('');
+    setUser(null);
+    localStorage.removeItem('slug_jwt_token');
+    localStorage.removeItem('slug_user');
+    setUserLinks([]);
+    showToast('Session expired', 'Please sign in again', 'info');
+  };
+
   // Fetch logged-in user URLs from PostgreSQL
   const fetchUserLinks = useCallback(async () => {
     if (!token) {
@@ -141,11 +150,7 @@ export const App: React.FC = () => {
       setUserLinks(links || []);
     } catch (err: any) {
       if (err.message && (err.message.includes('401') || err.message.includes('Unauthorized') || err.message.includes('expired'))) {
-        setToken('');
-        setUser(null);
-        localStorage.removeItem('slug_jwt_token');
-        localStorage.removeItem('slug_user');
-        showToast('Session expired', 'Please sign in again', 'info');
+        handleSessionExpired();
       }
     }
   }, [token, showToast]);
@@ -227,6 +232,10 @@ export const App: React.FC = () => {
         is_active: true,
       }));
 
+  if (currentView === 'notfound') {
+    return <NotFound pathCode={window.location.pathname.replace(/^\/+/, '')} />;
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
       <CursorGlow darkMode={darkMode} />
@@ -252,13 +261,13 @@ export const App: React.FC = () => {
               onOpenQR={(url, code) => setQrModalData({ url, code })}
               onViewStats={(code) => setStatsCode(code)}
               onOpenAuth={() => setAuthModalOpen(true)}
+              onSessionExpired={handleSessionExpired}
             />
 
             <LiveDashboard
               token={token}
               currentUser={user}
               allDisplayLinks={allDisplayLinks}
-              refreshTrigger={refreshTrigger}
               onOpenAuth={() => setAuthModalOpen(true)}
               onViewStats={(code) => setStatsCode(code)}
               onOpenQR={(url, code) => setQrModalData({ url, code })}
@@ -274,7 +283,7 @@ export const App: React.FC = () => {
             token={token}
             currentUser={user}
             allDisplayLinks={allDisplayLinks}
-            setUserLinks={setUserLinks}
+            onRefresh={fetchUserLinks}
             onOpenAuth={() => setAuthModalOpen(true)}
             onViewStats={(code) => setStatsCode(code)}
             onOpenQR={(url, code) => setQrModalData({ url, code })}

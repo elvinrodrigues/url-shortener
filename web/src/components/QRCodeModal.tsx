@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Download, Copy, Check, ExternalLink, QrCode as QrIcon, Loader2 } from 'lucide-react';
 import QRCode from 'qrcode';
+import { useModalA11y } from '../hooks/useModalA11y.ts';
 
 interface QRCodeModalProps {
   url?: string;
@@ -21,6 +22,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
   onShowToast,
   onCopy,
 }) => {
+  const modalRef = useModalA11y(isOpen, onClose);
   const [copied, setCopied] = useState(false);
   const [svgMarkup, setSvgMarkup] = useState<string>('');
   const [pngDataUrl, setPngDataUrl] = useState<string>('');
@@ -110,6 +112,11 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
       onClick={onClose}
     >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="qr-modal-title"
+        tabIndex={-1}
         className="glass-panel"
         style={{
           width: '100%',
@@ -141,7 +148,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
             >
               <QrIcon size={16} />
             </div>
-            <h3 className="font-display" style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-title)', margin: 0 }}>
+            <h3 id="qr-modal-title" className="font-display" style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-title)', margin: 0 }}>
               Dynamic QR Code
             </h3>
           </div>
@@ -149,6 +156,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close QR code modal"
             style={{
               background: 'transparent',
               border: 'none',
@@ -241,6 +249,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
             rel="noreferrer"
             style={{ color: 'var(--text-dim)', display: 'flex', alignItems: 'center' }}
             title="Open link"
+            aria-label="Open short URL in new tab"
           >
             <ExternalLink size={13} />
           </a>

@@ -388,6 +388,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 aria-label="Open Menu"
+                aria-expanded={mobileMenuOpen}
                 style={{
                   background: 'transparent',
                   border: 'none',

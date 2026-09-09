@@ -1,21 +1,15 @@
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  (typeof window !== 'undefined' && window.location.hostname
-    ? `http://${window.location.hostname}:8000`
-    : 'http://localhost:8000');
+const configured = import.meta.env.VITE_API_BASE_URL;
+if (import.meta.env.PROD && !configured) {
+  throw new Error('VITE_API_BASE_URL must be set for production builds');
+}
+export const API_BASE_URL = configured || 'http://localhost:8000';
 
 export const getShortUrl = (code: string): string => {
-  if (typeof window !== 'undefined' && window.location.origin) {
-    return `${window.location.origin}/${code}`;
-  }
-  return `https://trimto.me/${code}`;
+  return `${window.location.origin}/${code}`;
 };
 
 export const getShortHost = (): string => {
-  if (typeof window !== 'undefined' && window.location.host) {
-    return `${window.location.host}/`;
-  }
-  return 'trimto.me/';
+  return `${window.location.host}/`;
 };
 
 export interface CreateURLRequest {
@@ -85,21 +79,8 @@ export async function shortenURL(
   });
 
   if (!res.ok) {
-    // If 401 unauthorized because of stale/expired token, automatically retry anonymously
-    if (res.status === 401 && token) {
-      delete headers['Authorization'];
-      const retryRes = await fetch(`${API_BASE_URL}/shorten`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(data),
-      });
-      if (retryRes.ok) {
-        const json = await retryRes.json();
-        return {
-          short_code: json.short_code,
-          short_url: getShortUrl(json.short_code),
-        };
-      }
+    if (res.status === 401) {
+      throw new Error('Your session has expired. Please sign in again.');
     }
 
     if (res.status === 409) {

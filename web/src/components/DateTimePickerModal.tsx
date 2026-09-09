@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, Clock, ChevronLeft, ChevronRight, X, Check, RotateCcw, Zap, Info } from 'lucide-react';
+import { useModalA11y } from '../hooks/useModalA11y.ts';
 
 interface DateTimePickerModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
   onChange,
   onClose,
 }) => {
+  const modalRef = useModalA11y(isOpen, onClose);
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     if (value) {
       const d = new Date(value);
@@ -222,6 +224,11 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
       onClick={onClose}
     >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="datetime-modal-title"
+        tabIndex={-1}
         className="glass-panel"
         style={{
           width: '100%',
@@ -253,7 +260,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
             >
               <CalendarIcon size={16} />
             </div>
-            <h3 className="font-display" style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-title)', margin: 0 }}>
+            <h3 id="datetime-modal-title" className="font-display" style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-title)', margin: 0 }}>
               Set Expiration Date & Time
             </h3>
           </div>
@@ -261,6 +268,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close expiration date picker"
             style={{
               background: 'transparent',
               border: 'none',
@@ -329,6 +337,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                 type="button"
                 onClick={prevMonth}
                 disabled={isCurrentMonth}
+                aria-label="Previous month"
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -348,6 +357,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                 type="button"
                 onClick={nextMonth}
                 disabled={isMaxGuestMonth}
+                aria-label="Next month"
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -409,6 +419,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
                     type="button"
                     disabled={isDisabled}
                     onClick={() => handleSelectDay(dayNum)}
+                    aria-label={`Select ${MONTH_NAMES[viewMonth]} ${dayNum}, ${viewYear}`}
                     style={{
                       padding: '0.4rem 0',
                       borderRadius: '7px',
@@ -456,6 +467,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
               <select
                 value={hour12}
                 onChange={(e) => handleTimeChange(parseInt(e.target.value), minute, ampm)}
+                aria-label="Expiration hour"
                 className="font-mono"
                 style={{
                   background: 'var(--bg-card)',
@@ -481,6 +493,7 @@ export const DateTimePickerModal: React.FC<DateTimePickerModalProps> = ({
               <select
                 value={minute}
                 onChange={(e) => handleTimeChange(hour12, parseInt(e.target.value), ampm)}
+                aria-label="Expiration minute"
                 className="font-mono"
                 style={{
                   background: 'var(--bg-card)',

@@ -15,6 +15,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { getStats, getShortUrl, type URLStats } from '../api.ts';
+import { useModalA11y } from '../hooks/useModalA11y.ts';
 
 interface StatsModalProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({
   onOpenAuth,
   onShowToast,
 }) => {
+  const modalRef = useModalA11y(isOpen, onClose);
   const [code, setCode] = useState(initialCode);
   const [stats, setStats] = useState<URLStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -95,6 +97,11 @@ export const StatsModal: React.FC<StatsModalProps> = ({
       onClick={onClose}
     >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="stats-modal-title"
+        tabIndex={-1}
         className="glass-panel"
         style={{
           width: '100%',
@@ -127,7 +134,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({
             >
               <BarChart3 size={18} />
             </div>
-            <h3 className="font-display" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-title)' }}>
+            <h3 id="stats-modal-title" className="font-display" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-title)' }}>
               Link Analytics
             </h3>
           </div>
@@ -135,6 +142,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close analytics modal"
             style={{
               background: 'transparent',
               border: 'none',
@@ -166,6 +174,7 @@ export const StatsModal: React.FC<StatsModalProps> = ({
             <input
               type="text"
               placeholder="Enter short code (e.g. github)"
+              aria-label="Short code to inspect"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               className="font-mono"

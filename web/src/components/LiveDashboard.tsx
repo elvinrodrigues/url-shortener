@@ -8,7 +8,6 @@ interface LiveDashboardProps {
   token: string;
   currentUser: User | null;
   allDisplayLinks: LinkItemData[];
-  refreshTrigger: number;
   onOpenAuth: () => void;
   onViewStats: (code: string) => void;
   onOpenQR: (url: string, code: string) => void;

@@ -30,6 +30,7 @@ interface HeroSectionProps {
   onOpenQR: (url: string, code: string) => void;
   onViewStats: (code: string) => void;
   onOpenAuth: () => void;
+  onSessionExpired?: () => void;
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
@@ -39,6 +40,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   onOpenQR,
   onViewStats,
   onOpenAuth,
+  onSessionExpired,
 }) => {
   const [url, setUrl] = useState('');
   const [customAlias, setCustomAlias] = useState('');
@@ -123,7 +125,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       setShowAdvanced(false);
     } catch (err: any) {
       setError(err.message || 'Failed to shorten URL');
-      onShowToast('Shortening failed', err.message, 'error');
+      if (err.message && (err.message.includes('expired') || err.message.includes('401') || err.message.includes('Unauthorized'))) {
+        onSessionExpired?.();
+      } else {
+        onShowToast('Shortening failed', err.message, 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -247,6 +253,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               <input
                 type="text"
                 required
+                aria-label="Destination URL to shorten"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 onFocus={() => setIsInputFocused(true)}
@@ -416,7 +423,10 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           >
             {/* Custom Alias */}
             <div>
-              <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}>
+              <label
+                htmlFor="custom-alias"
+                style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: '4px', display: 'block' }}
+              >
                 Custom Alias (Optional)
               </label>
               <div
@@ -433,6 +443,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   {displayHost}
                 </span>
                 <input
+                  id="custom-alias"
                   type="text"
                   placeholder="custom-slug"
                   value={customAlias}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Key, LogOut, User as UserIcon, Sparkles } from 'lucide-react';
 import { API_BASE_URL, type User } from '../api.ts';
+import { useModalA11y } from '../hooks/useModalA11y.ts';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -15,15 +16,16 @@ const GOOGLE_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
   '522031681947-n509q6tl9f6k3ottib6h9ojir8lhh7jc.apps.googleusercontent.com';
 
-const DEV_TOKEN =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJlbWFpbCI6ImRldmVsb3BlckBlbHZpbi5kZXYiLCJuYW1lIjoiRWx2aW4gUm9kcmlndWVzIiwiZXhwIjoyMTAzNTQ1MjgzLCJpYXQiOjE3ODgxODUyODN9.naiJTDvPyMtJ-BLQmQOxj2ggHeluEP5XW3sAlI9v8Tc';
+const DEV_TOKEN = import.meta.env.DEV ? (import.meta.env.VITE_DEV_TOKEN ?? '') : '';
 
-const DEV_USER: User = {
-  id: 1,
-  email: 'elvin@example.com',
-  name: 'Elvin Rodrigues',
-  avatar_url: 'https://lh3.googleusercontent.com/a/default-user',
-};
+const DEV_USER: User | null = import.meta.env.DEV
+  ? {
+      id: 1,
+      email: 'elvin@example.com',
+      name: 'Elvin Rodrigues',
+      avatar_url: 'https://lh3.googleusercontent.com/a/default-user',
+    }
+  : null;
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
@@ -33,6 +35,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onShowToast,
 }) => {
+  const modalRef = useModalA11y(isOpen, onClose);
   const [error, setError] = useState('');
 
   const isLocalhost =
@@ -101,6 +104,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   const handleSignOut = () => {
+    (window as any).google?.accounts?.id?.disableAutoSelect?.();
     onSaveAuth('', null);
     onShowToast('Signed out', 'Returned to guest mode', 'info');
     onClose();
@@ -125,6 +129,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       onClick={onClose}
     >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-modal-title"
+        tabIndex={-1}
         className="glass-panel"
         style={{
           width: '100%',
@@ -155,7 +164,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             >
               <Key size={16} />
             </div>
-            <h3 className="font-display" style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-title)', margin: 0 }}>
+            <h3 id="auth-modal-title" className="font-display" style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-title)', margin: 0 }}>
               Authentication
             </h3>
           </div>
@@ -163,6 +172,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close authentication modal"
             style={{
               background: 'transparent',
               border: 'none',
@@ -238,7 +248,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
 
             {/* Localhost 1-Click Dev Sign In */}
-            {isLocalhost && (
+            {isLocalhost && DEV_TOKEN && (
               <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
                 <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '0.65rem', textAlign: 'center' }}>
                   — Local Dev Quick Sign-In —

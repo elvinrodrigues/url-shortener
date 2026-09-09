@@ -105,6 +105,7 @@ const ToastItem: React.FC<{
 
       <button
         type="button"
+        aria-label="Dismiss notification"
         onClick={() => onDismiss(toast.id)}
         style={{
           background: 'transparent',
@@ -133,6 +134,8 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismis
 
   return (
     <div
+      role="status"
+      aria-live="polite"
       style={{
         position: 'fixed',
         bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',

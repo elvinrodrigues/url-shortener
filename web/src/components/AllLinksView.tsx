@@ -18,14 +18,14 @@ import {
   Trash2,
 } from 'lucide-react';
 import { LinkCard, type LinkItemData } from './LinkCard.tsx';
-import { deleteURL, getUserURLs, isLinkExpired, type URLStats, type User } from '../api.ts';
+import { deleteURL, isLinkExpired, type User } from '../api.ts';
 import { clearAllExpiredLinks } from '../clearExpired.ts';
 
 interface AllLinksViewProps {
   token: string;
   currentUser: User | null;
   allDisplayLinks: LinkItemData[];
-  setUserLinks: React.Dispatch<React.SetStateAction<URLStats[]>>;
+  onRefresh?: () => Promise<void> | void;
   onOpenAuth: () => void;
   onDeleteHistoryItem: (code: string) => void;
   onNavigateHome: () => void;
@@ -38,7 +38,7 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
   token,
   currentUser,
   allDisplayLinks,
-  setUserLinks,
+  onRefresh,
   onOpenAuth,
   onDeleteHistoryItem,
   onNavigateHome,
@@ -51,6 +51,7 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
   const [sortBy, setSortBy] = useState<'clicks' | 'date' | 'name'>('clicks');
   const [currentPage, setCurrentPage] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
+  const [clearingExpired, setClearingExpired] = useState(false);
   const itemsPerPage = 8;
 
   // GUEST ACCESS RESTRICTION: If not signed in, show Auth Gate
@@ -205,11 +206,10 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
   }
 
   const handleRefresh = async () => {
-    if (!token) return;
+    if (!onRefresh) return;
     setRefreshing(true);
     try {
-      const data = await getUserURLs(token);
-      setUserLinks(data || []);
+      await onRefresh();
       onShowToast('Refreshed links', 'Fetched latest data from backend', 'info');
     } catch {
       onShowToast('Refresh failed', 'Could not refresh links', 'error');
@@ -237,7 +237,6 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
             throw err;
           }
         }
-        setUserLinks((prev) => prev.filter((item) => item.short_code !== code));
       }
       onDeleteHistoryItem(code);
       onShowToast('Link deleted', `/${code} has been removed.`, 'info');
@@ -268,7 +267,6 @@ export const AllLinksView: React.FC<AllLinksViewProps> = ({
     onShowToast('Exported CSV', 'Downloaded link records', 'success');
   };
 
-  const [clearingExpired, setClearingExpired] = useState(false);
   const expiredCount = allDisplayLinks.filter((l) => isLinkExpired(l.expires_at)).length;
   const hasExpired = expiredCount > 0;
 
