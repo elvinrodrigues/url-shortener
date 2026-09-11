@@ -79,6 +79,11 @@ export async function shortenURL(
   });
 
   if (!res.ok) {
+    // The response body can only be read once, so parse it before any branch
+    // returns rather than at the bottom of the chain.
+    const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+    const serverMessage = payload?.error?.trim();
+
     if (res.status === 401) {
       throw new Error('Your session has expired. Please sign in again.');
     }
@@ -87,7 +92,11 @@ export async function shortenURL(
       throw new Error(`That alias "${data.custom_code || ''}" is already taken. Please try another.`);
     }
     if (res.status === 422) {
-      throw new Error('Invalid URL format or custom short code.');
+      // One status covers four different refusals: a malformed URL, a malformed
+      // alias, a reserved alias, and a destination pointing back at this
+      // shortener. The server says which, so show that rather than a guess that
+      // is wrong three times out of four.
+      throw new Error(serverMessage || 'Invalid URL format or custom short code.');
     }
     if (res.status === 429) {
       throw new Error("You've reached the rate limit. Please try again in a few moments.");
@@ -96,8 +105,7 @@ export async function shortenURL(
       throw new Error('Service temporarily unavailable. Please try again.');
     }
 
-    const err = await res.json().catch(() => ({ error: `Failed to shorten URL (HTTP ${res.status})` }));
-    throw new Error(err.error || `Failed to shorten URL (HTTP ${res.status})`);
+    throw new Error(serverMessage || `Failed to shorten URL (HTTP ${res.status})`);
   }
 
   const json = await res.json();
