@@ -43,11 +43,11 @@ type urlService struct {
 	cache domain.URLCache
 	sf    singleflight.Group
 
-	// selfHost is the hostname of this deployment's BASE_URL, lowercased. A link
-	// whose destination resolves to it would redirect back into the shortener:
-	// each hop costs a cache lookup, a database read and a click increment, and a
-	// chain of them is a self-inflicted amplification loop. Empty disables the
-	// check, which is what unit tests use.
+	// selfHost is the hostname of this deployment's BASE_URL, canonicalised by
+	// canonicalHost. A link whose destination resolves to it would redirect back
+	// into the shortener: each hop costs a cache lookup, a database read and a
+	// click increment, and a chain of them is a self-inflicted amplification
+	// loop. Empty disables the check, which is what unit tests use.
 	selfHost string
 }
 
@@ -56,9 +56,18 @@ func New(r domain.URLRepository, c domain.URLCache, baseURL string) domain.URLSe
 	// Hostname() drops the port deliberately: a link to this host on any port is
 	// still pointing at us, and BASE_URL carries a port only in local development.
 	if u, err := url.Parse(baseURL); err == nil {
-		s.selfHost = strings.ToLower(u.Hostname())
+		s.selfHost = canonicalHost(u.Hostname())
 	}
 	return s
+}
+
+// canonicalHost lowercases a hostname and drops a leading "www.". The apex and
+// the www host are one deployment: our edge answers the apex with a 308 to www,
+// so a destination spelled either way lands back on this service. Comparing the
+// raw hostnames would let whichever spelling BASE_URL does not carry through,
+// which is how a self-referential link reached production once already.
+func canonicalHost(host string) string {
+	return strings.TrimPrefix(strings.ToLower(host), "www.")
 }
 
 // cacheSet writes through to the cache on a best-effort basis. Cache failures are
@@ -325,7 +334,7 @@ func (s *urlService) validateURL(longURL string) error {
 	// costs a cache lookup, a database read and a detached click increment, so a
 	// short chain of them is an amplification loop pointed at ourselves — and the
 	// link is useless to the person creating it either way.
-	if s.selfHost != "" && strings.EqualFold(u.Hostname(), s.selfHost) {
+	if s.selfHost != "" && canonicalHost(u.Hostname()) == s.selfHost {
 		return domain.ErrURLSelfReferential
 	}
 	return nil

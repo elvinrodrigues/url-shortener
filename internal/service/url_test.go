@@ -1172,6 +1172,9 @@ func TestShorten_RejectsSelfReferentialURLs(t *testing.T) {
 		{"case-insensitive host", "https://TrimTo.ME/abc1234"},
 		{"different port, same host", "https://trimto.me:8443/abc1234"},
 		{"with query and fragment", "https://trimto.me/abc?x=1#y"},
+		{"www spelling of our apex", "https://www.trimto.me/abc1234"},
+		{"www spelling, bare host", "https://www.trimto.me"},
+		{"www spelling, mixed case", "https://WWW.TrimTo.me/abc1234"},
 	}
 
 	for _, tc := range rejected {
@@ -1189,8 +1192,9 @@ func TestShorten_RejectsSelfReferentialURLs(t *testing.T) {
 		})
 	}
 
-	// Hosts that merely resemble ours must still be shortenable — the check is a
-	// host comparison, not a substring match.
+	// Hosts that merely resemble ours must still be shortenable. The check
+	// compares whole hostnames, with only a leading "www." normalised away; it is
+	// not a substring match and it does not swallow real subdomains.
 	accepted := []string{
 		"https://example.com/trimto.me",
 		"https://nottrimto.me/x",
@@ -1206,6 +1210,23 @@ func TestShorten_RejectsSelfReferentialURLs(t *testing.T) {
 				t.Fatalf("legitimate destination %q was rejected: %v", u, err)
 			}
 		})
+	}
+}
+
+// TestShorten_RejectsApexWhenBaseURLIsWWW is the mirror of the case above. The
+// apex and the www host are one deployment — our edge answers the apex with a
+// 308 to www — so the guard must reject the spelling BASE_URL does not carry,
+// whichever of the two that is.
+func TestShorten_RejectsApexWhenBaseURLIsWWW(t *testing.T) {
+	svc, repo, _ := newTestServiceWithBase("https://www.trimto.me")
+
+	_, err := svc.Shorten(context.Background(), domain.CreateURLRequest{LongURL: "https://trimto.me/abc1234"})
+
+	if !errors.Is(err, domain.ErrURLSelfReferential) {
+		t.Fatalf("got %v, want ErrURLSelfReferential", err)
+	}
+	if got := repo.createCalls.Load(); got != 0 {
+		t.Fatalf("a self-referential URL reached the repository %d times", got)
 	}
 }
 
