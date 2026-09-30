@@ -63,7 +63,8 @@ jobs:
         run: docker build -t url-shortener:ci .
 
       - name: Report image size
-        run: docker image inspect url-shortener:ci --format 'image size: {{.Size}} bytes'
+        run: |
+          docker image inspect url-shortener:ci --format 'image size: {{.Size}} bytes'
 
   web:
     name: Frontend typecheck and build
