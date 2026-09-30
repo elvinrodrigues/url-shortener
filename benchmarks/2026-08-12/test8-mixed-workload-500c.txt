@@ -1,0 +1,15 @@
+Summary:
+  Total:	13.6561 secs
+  Slowest:	0.8464 secs
+  Fastest:	0.0008 secs
+  Average:	0.0873 secs
+  Requests/sec:	1464.5442
+
+Latency distribution:
+  50% in 0.0587 secs
+  90% in 0.2024 secs
+  99% in 0.4078 secs
+
+Status code distribution:
+  [302]	19072 responses
+  [404]	928 responses

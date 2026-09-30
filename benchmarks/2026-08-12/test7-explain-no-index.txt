@@ -1,0 +1,19 @@
+BEGIN
+DROP INDEX
+                                                           QUERY PLAN                                                           
+--------------------------------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on urls  (cost=8.25..49.39 rows=1 width=20) (actual time=0.156..0.165 rows=1 loops=1)
+   Recheck Cond: is_active
+   Filter: ((short_code)::text = 'IwaKsc1'::text)
+   Rows Removed by Filter: 31
+   Heap Blocks: exact=14
+   Buffers: shared hit=15
+   ->  Bitmap Index Scan on idx_urls_user_created  (cost=0.00..8.25 rows=22 width=0) (actual time=0.027..0.027 rows=32 loops=1)
+         Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=108
+ Planning Time: 1.677 ms
+ Execution Time: 0.591 ms
+(12 rows)
+
+ROLLBACK

@@ -17,7 +17,3 @@ docs/
 cmd/scratch/
 
 dump.rdb
-
-# Anchored for the same reason as the binaries above: unanchored, this would
-# also match any nested directory named "benchmarks".
-/benchmarks

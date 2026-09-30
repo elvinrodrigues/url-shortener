@@ -1,0 +1,30 @@
+=== GIT COMMIT & STATUS ===
+c93cb90cb47bac4ac20e92e1669c5536c180971b
+?? benchmarks/
+
+=== HOST MACHINE SPEC ===
+Linux archlinux 7.1.6-arch1-1 #1 SMP PREEMPT_DYNAMIC Tue, 04 Aug 2026 11:19:27 +0000 x86_64 GNU/Linux
+CPU(s):                                  12
+Model name:                              AMD Ryzen 5 5600H with Radeon Graphics
+Thread(s) per core:                      2
+Core(s) per socket:                      6
+NUMA node0 CPU(s):                       0-11
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi        10Gi       466Mi       368Mi       4.4Gi       4.8Gi
+Swap:          7.5Gi       907Mi       6.6Gi
+
+=== TOOL VERSIONS ===
+go version go1.26.5-X:nodwarf5 linux/amd64
+psql (PostgreSQL) 15.18
+redis-cli 7.4.10
+
+=== CONTAINER RESOURCE LIMITS & STATS ===
+App Memory Limit: 0 NanoCPUs: 0
+Postgres Memory Limit: 0 NanoCPUs: 0
+Redis Memory Limit: 0 NanoCPUs: 0
+
+=== IDLE CONTAINER STATS ===
+CONTAINER ID   NAME                       CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O        PIDS
+0ca6bb312c82   url-shortener-app-1        0.00%     128.7MiB / 15.02GiB   0.84%     62.1MB / 101MB    0B / 0B          24
+ed6c2fb051f6   url-shortener-postgres-1   4.55%     46.98MiB / 15.02GiB   0.31%     31.8MB / 23.7MB   30.8MB / 886MB   6
+68eb0dd2eb46   url-shortener-redis-1      0.41%     8.465MiB / 15.02GiB   0.06%     579kB / 401kB     61.4kB / 0B      6

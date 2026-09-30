@@ -238,23 +238,37 @@ Probes each backing service with a 2-second budget and grades the result by how 
 
 ## 6. Measured Performance Baselines
 
-All figures below come from the `hey` artifacts under `benchmarks/2026-08-12/`, measured
-against the Docker Compose stack on a 12-thread AMD Ryzen 5 5600H with 15 GiB RAM
-(`test0-environment-baseline.txt`). Client and server share the host, so these are
-relative baselines for comparing configurations, not absolute capacity numbers.
+All figures below come from the `hey` artifacts under [`benchmarks/2026-08-12/`](benchmarks/2026-08-12/),
+measured at commit `c93cb90` against the Docker Compose stack on a 12-thread AMD Ryzen 5
+5600H with 15 GiB RAM ([`test0-environment-baseline`](benchmarks/2026-08-12/test0-environment-baseline.txt)). Client and server share the
+host, so these are relative baselines for comparing configurations, not absolute capacity
+numbers. The artifacts record `hey`'s output but not the command line that produced it.
+
+**Headline redirect figure: 5,617 rps, p50 30.5 ms, p99 108 ms** — 50,000 requests at 200
+concurrent, every one a `302` ([`test3-stress-200c-50000r`](benchmarks/2026-08-12/test3-stress-200c-50000r.txt)).
 
 | Scenario | Requests | Concurrency | Throughput | p50 | p99 | Status Distribution | Artifact |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| Warm cache redirect | 5,000 | 100 | 7,290 rps | 11.2 ms | 47.8 ms | 100% `302` | `test1-warm-100c-run1` |
-| Stress redirect | 50,000 | 500 | 7,636 rps | 60.5 ms | 161 ms | 100% `302` | `test3-stress-500c` |
-| Stress redirect | 50,000 | 2,000 | 7,369 rps | 241 ms | 869 ms | 100% `302` | `test3-stress-2000c` |
-| 60s soak | 195,357 | 200 | 3,253 rps | 56.5 ms | — | 100% `302` | `test2-soak-60s-200c` |
-| Mixed workload (5% miss) | 20,000 | 500 | 1,465 rps | 58.7 ms | 408 ms | 95% `302`, 5% `404` | `test8-mixed-workload-500c` |
-| **Redis offline** | 10,000 | 1,000 | 1,021 rps | 669 ms | 1.89 s | **100% `302`** | `test4-outage-1000c` |
-| Redis online (same shape) | 5,000 | 1,000 | 5,238 rps | 67.8 ms | 381 ms | 100% `302` | `test4-pre-outage-baseline` |
-| Rate-limited write burst | 2,000 | 100 | 9,407 rps | 8.8 ms | 28.9 ms | **10 × `201`, 1,990 × `429`** | `test6-ratelimit-100c` |
+| Redirect | 50,000 | 200 | 5,617 rps | 30.5 ms | 108 ms | 100% `302` | [`test3-stress-200c-50000r`](benchmarks/2026-08-12/test3-stress-200c-50000r.txt) |
+| Warm cache redirect (single run, see note) | 5,000 | 100 | 7,290 rps | 11.2 ms | 47.8 ms | 100% `302` | [`test1-warm-100c-run1`](benchmarks/2026-08-12/test1-warm-100c-run1.txt) |
+| Stress redirect | 50,000 | 500 | 7,636 rps | 60.5 ms | 161 ms | 100% `302` | [`test3-stress-500c-50000r`](benchmarks/2026-08-12/test3-stress-500c-50000r.txt) |
+| Stress redirect | 50,000 | 2,000 | 7,369 rps | 241 ms | 869 ms | 100% `302` | [`test3-stress-2000c-50000r`](benchmarks/2026-08-12/test3-stress-2000c-50000r.txt) |
+| 60s soak | 195,357 | 200 | 3,253 rps | 56.5 ms | — | 100% `302` | [`test2-soak-60s-200c`](benchmarks/2026-08-12/test2-soak-60s-200c.txt) |
+| Mixed workload (5% miss) | 20,000 | 500 | 1,465 rps | 58.7 ms | 408 ms | 95% `302`, 5% `404` | [`test8-mixed-workload-500c`](benchmarks/2026-08-12/test8-mixed-workload-500c.txt) |
+| **Redis offline** | 10,000 | 1,000 | 1,021 rps | 669 ms | 1.89 s | **100% `302`** | [`test4-outage-1000c`](benchmarks/2026-08-12/test4-outage-1000c.txt) |
+| Redis online (same shape) | 5,000 | 1,000 | 5,238 rps | 67.8 ms | 381 ms | 100% `302` | [`test4-pre-outage-baseline`](benchmarks/2026-08-12/test4-pre-outage-baseline.txt) |
+| Rate-limited write burst | 2,000 | 100 | 9,407 rps | 8.8 ms | 28.9 ms | **10 × `201`, 1,990 × `429`** | [`test6-ratelimit-100c-2000r`](benchmarks/2026-08-12/test6-ratelimit-100c-2000r.txt) |
 
-### Singleflight A/B (`test5`, 10,000 requests, cold cache)
+**Excluded runs.** The warm-cache test was run three times at 100 concurrent and three
+times at 200. Only `test1-warm-100c-run1` returned `302`s; the other five returned
+**100% `429`**, so they measured rejections rather than redirects and are not used. The
+7,290 rps figure is therefore a single, unreproduced run, which is why it is not the
+headline. `GET /{code}` carries no rate limiter at `c93cb90`, and the artifacts do not
+record the request that was sent, so the source of those `429`s is unexplained.
+`load-test-results/` holds earlier runs (committed 1 Aug) with no environment record; none of the
+figures here come from it.
+
+### Singleflight A/B ([`test5-singleflight-on`](benchmarks/2026-08-12/test5-singleflight-on.txt) vs [`test5-singleflight-off`](benchmarks/2026-08-12/test5-singleflight-off.txt), 10,000 requests, cold cache)
 
 | Configuration | Throughput | p50 | p99 |
 | :--- | :--- | :--- | :--- |
@@ -266,7 +280,7 @@ stronger invariant — that N concurrent misses for one key produce exactly one 
 read — is asserted directly by
 `TestRedirect_SingleflightCoalescesConcurrentMisses` rather than inferred from throughput.
 
-### Index verification (`test7`)
+### Index verification ([`test7-explain-covering-index`](benchmarks/2026-08-12/test7-explain-covering-index.txt), [`test7-explain-no-index`](benchmarks/2026-08-12/test7-explain-no-index.txt))
 
 `EXPLAIN (ANALYZE, BUFFERS)` on the redirect lookup resolves through
 `idx_urls_short_code` as an **Index Only Scan with `Heap Fetches: 0`** in 2 shared buffer

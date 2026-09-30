@@ -1,0 +1,12 @@
+                                                           QUERY PLAN                                                           
+--------------------------------------------------------------------------------------------------------------------------------
+ Index Only Scan using idx_urls_short_code on urls  (cost=0.14..4.16 rows=1 width=20) (actual time=0.052..0.054 rows=1 loops=1)
+   Index Cond: (short_code = 'IwaKsc1'::text)
+   Heap Fetches: 0
+   Buffers: shared hit=2
+ Planning:
+   Buffers: shared hit=137 dirtied=2
+ Planning Time: 2.230 ms
+ Execution Time: 0.129 ms
+(8 rows)
+

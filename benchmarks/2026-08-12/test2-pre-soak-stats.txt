@@ -1,0 +1,4 @@
+CONTAINER ID   NAME                       CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O        PIDS
+0ca6bb312c82   url-shortener-app-1        29.63%    189MiB / 15.02GiB     1.23%     96.1MB / 157MB    0B / 0B          26
+ed6c2fb051f6   url-shortener-postgres-1   55.78%    187.8MiB / 15.02GiB   1.22%     44MB / 34.3MB     30.8MB / 1.2GB   96
+68eb0dd2eb46   url-shortener-redis-1      2.90%     9.234MiB / 15.02GiB   0.06%     8.65MB / 7.29MB   61.4kB / 0B      6
